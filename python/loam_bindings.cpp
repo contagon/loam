@@ -9,8 +9,6 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(loam_python, m) {
-  py::module gtsam = py::module::import("numpy");
-
   /**
    *  ######   #######  ##     ## ##     ##  #######  ##    ##
    * ##    ## ##     ## ###   ### ###   ### ##     ## ###   ##
