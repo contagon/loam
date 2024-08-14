@@ -8,6 +8,7 @@ from collections import OrderedDict
 import numpy as np
 from gtsam import Pose3, Rot3
 import open3d as o3d
+import rerun as rr
 import loam
 import gtsam
 
@@ -20,6 +21,20 @@ import gtsam
 ##        ##     ## ##    ##  ##    ##  ##  ##   ### ##    ##  
 ##        ##     ## ##     ##  ######  #### ##    ##  ######   
 """
+
+
+def gtsam2rr(pose: gtsam.Pose3) -> rr.Transform3D:
+    return rr.Transform3D(
+        mat3x3=pose.rotation().matrix(),
+        translation=pose.translation(),
+    )
+
+
+def ate(gt, sol):
+    error = 0
+    for i in range(len(gt)):
+        error += np.linalg.norm(gt[i].translation() - sol[i].translation())
+    return error / len(gt)
 
 
 def to_sec(sec, nsec):
@@ -130,9 +145,17 @@ def handle_args():
         type=float,
         help="The rate of keyframes",
     )
+    parser.add_argument(
+        "--visualize",
+        "-v",
+        action="store_true",
+        help="Visualize the results",
+    )
     return parser.parse_args()
 
 
+# TODO: Figure out frame change between ground truth & lidar
+# TODO: Compute final error at the end
 def main():
     args = handle_args()
     print("Parsing Keyframes... ")
@@ -144,19 +167,39 @@ def main():
     print("Starting LOAM... ")
 
     odom_pose = gtsam.Pose3()
-    # vis = o3d.visualization.Visualizer()
-    # vis.create_window()
-    target_pcd = None
-    source_pcd = None
+    map = np.zeros((0, 3))
+    gt = []
+    sol = []
+
+    rr.init("loam", spawn=False)
+    rr.connect("172.31.71.241:9876")
 
     lidar_params = loam.LidarParams(64, 1024, 1.0, 120.0)
     feat_params = loam.FeatureExtractionParams()
-    feat_params.edge_feat_threshold = 10000
+    feat_params.neighbor_points = 4
+    feat_params.number_sectors = 6
+    feat_params.max_edge_feats_per_sector = 10
+    feat_params.max_planar_feats_per_sector = 50
+
+    feat_params.edge_feat_threshold = 50.0
     feat_params.planar_feat_threshold = 1.0
-    for i in range(0, len(keyframe_gt_poses)):
+
+    feat_params.occlusion_thresh = 0.9
+    feat_params.parallel_thresh = 0.01
+
+    reg_params = loam.RegistrationParams()
+    reg_params.max_iterations = 20
+    # feat_params.edge_feat_threshold = 1000000000
+    # feat_params.planar_feat_threshold = 10.0
+
+    # for i in range(0, len(keyframe_gt_poses)):
+    for i in range(0, 200):
         # Get info about this pose
         stamp_i, pose_i = keyframe_gt_poses[i]
         pcd_i = read_ouster_cloud(keyframes[stamp_i], lidar_params)
+
+        if i == 0:
+            odom_pose = pose_i
 
         # Get info about the next pose
         stamp_ip1, pose_ip1 = keyframe_gt_poses[i + 1]
@@ -166,14 +209,26 @@ def main():
         feat_i = loam.extractFeatures(pcd_i, lidar_params, feat_params)
         feat_ip1 = loam.extractFeatures(pcd_ip1, lidar_params, feat_params)
 
-        print(len(feat_i.edge_points), len(feat_i.planar_points))
+        # print(len(feat_i.edge_points), len(feat_i.planar_points))
         # feat_i.edge_points = []
         # feat_ip1.edge_points = []
 
+        detail = loam.RegistrationDetail()
         i_T_ip1 = loam.registerFeatures(
             source=feat_ip1,
             target=feat_i,
             target_T_source_init=loam.Pose3d.Identity(),
+            detail=detail,
+            params=reg_params,
+        )
+        result = ""
+        if detail.termination_type == loam.RegistrationTerminationType.CONVERGED:
+            result = "CONVERGED"
+        elif detail.termination_type == loam.RegistrationTerminationType.MAX_ITER:
+            result = "MAX_ITER"
+
+        print(
+            f"iter {i}, edges {len(feat_i.edge_points)}, planar {len(feat_i.planar_points)}, result: {result}"
         )
 
         rel_pose = gtsam.Pose3(
@@ -185,40 +240,39 @@ def main():
             ),
             i_T_ip1.translation,
         )
-        print(rel_pose)
-        quit()
 
         # Visualize
-        if target_pcd is None:
-            target_pcd = o3d.geometry.PointCloud()
-            target_pcd.points = o3d.utility.Vector3dVector(pcd_i)
-            target_pcd.paint_uniform_color(np.array([0, 0, 1]))
-            target_pcd.transform(odom_pose.matrix())
+        if args.visualize and i % 1 == 0:
+            # Send in the source map
+            rr.set_time_seconds("loam_time", seconds=to_sec(*stamp_i))
+            rr.log("source", gtsam2rr(odom_pose))
+            rr.log("source/points", rr.Points3D(pcd_i, colors=[[255, 0, 0]]))
 
-            source_pcd = o3d.geometry.PointCloud()
-            source_pcd.points = o3d.utility.Vector3dVector(pcd_ip1)
-            source_pcd.paint_uniform_color(np.array([0, 1, 0]))
-            source_pcd.transform(odom_pose.compose(rel_pose).matrix())
-            vis.add_geometry(target_pcd)
-            vis.add_geometry(source_pcd)
-        else:
-            target_pcd.points = o3d.utility.Vector3dVector(pcd_i)
-            target_pcd.paint_uniform_color(np.array([0, 0, 1]))
-            target_pcd.transform(odom_pose.matrix())
+            # Send in the target map
+            temp = odom_pose.compose(rel_pose)
+            rr.log("target", gtsam2rr(temp))
+            rr.log("target/points", rr.Points3D(pcd_ip1, colors=[[0, 0, 255]]))
 
-            source_pcd.points = o3d.utility.Vector3dVector(pcd_ip1)
-            source_pcd.paint_uniform_color(np.array([0, 0, 1]))
-            source_pcd.transform(odom_pose.compose(rel_pose).matrix())
-
-        vis.update_geometry(target_pcd)
-        vis.update_geometry(source_pcd)
-        vis.poll_events()
-        vis.update_renderer()
-        vis.capture_screen_image("temp_figs/%04d.png" % i)
-
-        print(f"finished iteration {i}")
+            rr.log("ground_truth", gtsam2rr(pose_ip1))
 
         odom_pose = odom_pose.compose(rel_pose)
+
+        gt.append(pose_ip1)
+        sol.append(odom_pose)
+
+        if args.visualize:
+            pcd_ip1 = (
+                np.array(pcd_ip1[::50]) @ odom_pose.rotation().matrix().T
+                + odom_pose.translation()
+            )
+            map = np.vstack((map, pcd_ip1))
+            if i % 100 == 0:
+                rr.log(
+                    "map/points",
+                    rr.Points3D(map, colors=[[0, 255, 0]], radii=0.1),
+                )
+
+    print("FINAL ERROR: ", ate(gt, sol))
 
 
 if __name__ == "__main__":
