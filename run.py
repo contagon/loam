@@ -11,6 +11,7 @@ import open3d as o3d
 import rerun as rr
 import loam
 import gtsam
+from tqdm import trange
 
 """
 ########     ###    ########   ######  #### ##    ##  ######   
@@ -147,9 +148,31 @@ def handle_args():
     )
     parser.add_argument(
         "--visualize",
-        "-v",
         action="store_true",
         help="Visualize the results",
+    )
+    parser.add_argument(
+        "--threshold_edge",
+        type=float,
+        help="Edge feature threshold",
+        default=50.0,
+    )
+    parser.add_argument(
+        "--threshold_planar",
+        type=float,
+        help="Planar feature threshold",
+        default=1.0,
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Print verbose output",
+    )
+    parser.add_argument(
+        "--length",
+        type=int,
+        help="Number of keyframes to process",
     )
     return parser.parse_args()
 
@@ -158,21 +181,37 @@ def handle_args():
 # TODO: Compute final error at the end
 def main():
     args = handle_args()
-    print("Parsing Keyframes... ")
+    if args.verbose:
+        print("Parsing Keyframes... ")
     keyframes = parse_keyframes(args.dataset_dir, args.keyframe_rate)
-    print("Parsing Groundtruth...")
+    if args.verbose:
+        print("Parsing Groundtruth...")
     gt_poses = parse_groundtruth(args.dataset_dir)
-    print("Filtering keyframe groundtruth... ")
+    if args.verbose:
+        print("Filtering keyframe groundtruth... ")
     keyframe_gt_poses = filter_gt_keyframes(gt_poses, keyframes)
-    print("Starting LOAM... ")
+    if args.verbose:
+        print("Starting LOAM... ")
 
     odom_pose = gtsam.Pose3()
     map = np.zeros((0, 3))
     gt = []
     sol = []
+    num_edges = []
+    num_planar = []
 
-    rr.init("loam", spawn=False)
-    rr.connect("172.31.71.241:9876")
+    gt_T_lidar = gtsam.Pose3(
+        gtsam.Rot3(0.38268, 0, 0, 0.92388), np.array([-0.08425, -0.025, 0.050188])
+    )
+
+    for i in range(len(keyframe_gt_poses)):
+        stamp, frame = keyframe_gt_poses[i]
+        frame = frame.compose(gt_T_lidar)
+        keyframe_gt_poses[i] = (stamp, frame)
+
+    if args.visualize:
+        rr.init("loam", spawn=False)
+        rr.connect("172.31.71.241:9876")
 
     lidar_params = loam.LidarParams(64, 1024, 1.0, 120.0)
     feat_params = loam.FeatureExtractionParams()
@@ -181,19 +220,21 @@ def main():
     feat_params.max_edge_feats_per_sector = 10
     feat_params.max_planar_feats_per_sector = 50
 
-    feat_params.edge_feat_threshold = 50.0
-    feat_params.planar_feat_threshold = 1.0
+    feat_params.edge_feat_threshold = args.threshold_edge
+    feat_params.planar_feat_threshold = args.threshold_planar
 
     feat_params.occlusion_thresh = 0.9
     feat_params.parallel_thresh = 0.01
 
     reg_params = loam.RegistrationParams()
-    reg_params.max_iterations = 20
-    # feat_params.edge_feat_threshold = 1000000000
-    # feat_params.planar_feat_threshold = 10.0
+    reg_params.max_iterations = 80
 
-    # for i in range(0, len(keyframe_gt_poses)):
-    for i in range(0, 200):
+    length = len(keyframe_gt_poses)
+    if args.length and args.length < length:
+        length = args.length
+
+    for i in range(0, length):
+        # for i in range(0, 200):
         # Get info about this pose
         stamp_i, pose_i = keyframe_gt_poses[i]
         pcd_i = read_ouster_cloud(keyframes[stamp_i], lidar_params)
@@ -203,6 +244,7 @@ def main():
 
         # Get info about the next pose
         stamp_ip1, pose_ip1 = keyframe_gt_poses[i + 1]
+        # Move the ground truth pose to the lidar frame
         pcd_ip1 = read_ouster_cloud(keyframes[stamp_ip1], lidar_params)
 
         # Extract the features
@@ -227,9 +269,10 @@ def main():
         elif detail.termination_type == loam.RegistrationTerminationType.MAX_ITER:
             result = "MAX_ITER"
 
-        print(
-            f"iter {i}, edges {len(feat_i.edge_points)}, planar {len(feat_i.planar_points)}, result: {result}"
-        )
+        if args.verbose:
+            print(
+                f"iter {i}, edges {len(feat_i.edge_points)}, planar {len(feat_i.planar_points)}, result: {result}"
+            )
 
         rel_pose = gtsam.Pose3(
             gtsam.Rot3.Quaternion(
@@ -246,12 +289,18 @@ def main():
             # Send in the source map
             rr.set_time_seconds("loam_time", seconds=to_sec(*stamp_i))
             rr.log("source", gtsam2rr(odom_pose))
-            rr.log("source/points", rr.Points3D(pcd_i, colors=[[255, 0, 0]]))
+            edges = np.array(feat_i.edge_points)
+            rr.log("source/edges", rr.Points3D(edges, colors=[[255, 0, 0]]))
+            planar = np.array(feat_i.planar_points)
+            rr.log("source/planar", rr.Points3D(planar, colors=[[0, 255, 0]]))
 
             # Send in the target map
             temp = odom_pose.compose(rel_pose)
             rr.log("target", gtsam2rr(temp))
-            rr.log("target/points", rr.Points3D(pcd_ip1, colors=[[0, 0, 255]]))
+            edges = np.array(feat_ip1.edge_points)
+            rr.log("target/edges", rr.Points3D(edges, colors=[[100, 0, 0]]))
+            planar = np.array(feat_ip1.planar_points)
+            rr.log("target/planar", rr.Points3D(planar, colors=[[0, 100, 0]]))
 
             rr.log("ground_truth", gtsam2rr(pose_ip1))
 
@@ -259,6 +308,8 @@ def main():
 
         gt.append(pose_ip1)
         sol.append(odom_pose)
+        num_edges.append(len(feat_i.edge_points))
+        num_planar.append(len(feat_i.planar_points))
 
         if args.visualize:
             pcd_ip1 = (
@@ -272,7 +323,17 @@ def main():
                     rr.Points3D(map, colors=[[0, 255, 0]], radii=0.1),
                 )
 
-    print("FINAL ERROR: ", ate(gt, sol))
+    # print(
+    #     f"Length: {length}, ERROR: {ate(gt, sol)}, ThreshEdge: {args.threshold_edge}, ThreshPlanar: {args.threshold_planar}, AvgEdges: {np.mean(num_edges)}, AvgPlanar: {np.mean(num_planar)}"
+    # )
+    print(
+        length,
+        ate(gt, sol),
+        args.threshold_edge,
+        args.threshold_planar,
+        np.mean(num_edges),
+        np.mean(num_planar),
+    )
 
 
 if __name__ == "__main__":
