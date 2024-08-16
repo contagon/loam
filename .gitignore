@@ -4,3 +4,4 @@ __pycache__/
 *.so
 newer_short/
 ouster_zip_files/
+*.csv

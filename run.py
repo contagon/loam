@@ -177,10 +177,14 @@ def handle_args():
     return parser.parse_args()
 
 
-# TODO: Figure out frame change between ground truth & lidar
-# TODO: Compute final error at the end
 def main():
     args = handle_args()
+
+    if args.threshold_planar > args.threshold_edge:
+        if args.verbose:
+            print("Planar threshold must be less than edge threshold")
+        quit()
+
     if args.verbose:
         print("Parsing Keyframes... ")
     keyframes = parse_keyframes(args.dataset_dir, args.keyframe_rate)
@@ -211,7 +215,7 @@ def main():
 
     if args.visualize:
         rr.init("loam", spawn=False)
-        rr.connect("172.31.71.241:9876")
+        rr.connect("0.0.0.0:9876")
 
     lidar_params = loam.LidarParams(64, 1024, 1.0, 120.0)
     feat_params = loam.FeatureExtractionParams()
@@ -234,7 +238,6 @@ def main():
         length = args.length
 
     for i in range(0, length):
-        # for i in range(0, 200):
         # Get info about this pose
         stamp_i, pose_i = keyframe_gt_poses[i]
         pcd_i = read_ouster_cloud(keyframes[stamp_i], lidar_params)
@@ -311,17 +314,17 @@ def main():
         num_edges.append(len(feat_i.edge_points))
         num_planar.append(len(feat_i.planar_points))
 
-        if args.visualize:
-            pcd_ip1 = (
-                np.array(pcd_ip1[::50]) @ odom_pose.rotation().matrix().T
-                + odom_pose.translation()
-            )
-            map = np.vstack((map, pcd_ip1))
-            if i % 100 == 0:
-                rr.log(
-                    "map/points",
-                    rr.Points3D(map, colors=[[0, 255, 0]], radii=0.1),
-                )
+        # if args.visualize:
+        #     pcd_ip1 = (
+        #         np.array(pcd_ip1[::50]) @ odom_pose.rotation().matrix().T
+        #         + odom_pose.translation()
+        #     )
+        #     map = np.vstack((map, pcd_ip1))
+        #     if i % 100 == 0:
+        #         rr.log(
+        #             "map/points",
+        #             rr.Points3D(map, colors=[[0, 255, 0]], radii=0.1),
+        #         )
 
     # print(
     #     f"Length: {length}, ERROR: {ate(gt, sol)}, ThreshEdge: {args.threshold_edge}, ThreshPlanar: {args.threshold_planar}, AvgEdges: {np.mean(num_edges)}, AvgPlanar: {np.mean(num_planar)}"
