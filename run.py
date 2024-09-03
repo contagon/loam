@@ -11,7 +11,7 @@ import open3d as o3d
 import rerun as rr
 import loam
 import gtsam
-from tqdm import trange
+import random
 
 """
 ########     ###    ########   ######  #### ##    ##  ######   
@@ -75,7 +75,9 @@ def parse_groundtruth(dataset_dir):
     """
     gt_poses = []
     with open(os.path.join(dataset_dir, "gt_poses.csv")) as csvfile:
-        for line in csv.reader(filter(lambda row: row[0] != "#", csvfile)):
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip the header
+        for line in reader:
             sec, nsec, x, y, z, qx, qy, qz, qw = line
             r = Rot3.Quaternion(float(qw), float(qx), float(qy), float(qz))
             t = np.array([float(x), float(y), float(z)])
@@ -152,15 +154,15 @@ def handle_args():
         help="Visualize the results",
     )
     parser.add_argument(
-        "--threshold_edge",
+        "--percent_edge",
         type=float,
-        help="Edge feature threshold",
-        default=50.0,
+        help="Edge feature % to keep",
+        default=1.0,
     )
     parser.add_argument(
-        "--threshold_planar",
+        "--percent_planar",
         type=float,
-        help="Planar feature threshold",
+        help="Planar feature % to keep",
         default=1.0,
     )
     parser.add_argument(
@@ -180,11 +182,6 @@ def handle_args():
 def main():
     args = handle_args()
 
-    if args.threshold_planar > args.threshold_edge:
-        if args.verbose:
-            print("Planar threshold must be less than edge threshold")
-        quit()
-
     if args.verbose:
         print("Parsing Keyframes... ")
     keyframes = parse_keyframes(args.dataset_dir, args.keyframe_rate)
@@ -198,7 +195,6 @@ def main():
         print("Starting LOAM... ")
 
     odom_pose = gtsam.Pose3()
-    map = np.zeros((0, 3))
     gt = []
     sol = []
     num_edges = []
@@ -224,8 +220,8 @@ def main():
     feat_params.max_edge_feats_per_sector = 10
     feat_params.max_planar_feats_per_sector = 50
 
-    feat_params.edge_feat_threshold = args.threshold_edge
-    feat_params.planar_feat_threshold = args.threshold_planar
+    feat_params.edge_feat_threshold = 50.0
+    feat_params.planar_feat_threshold = 1.0
 
     feat_params.occlusion_thresh = 0.9
     feat_params.parallel_thresh = 0.01
@@ -254,9 +250,21 @@ def main():
         feat_i = loam.extractFeatures(pcd_i, lidar_params, feat_params)
         feat_ip1 = loam.extractFeatures(pcd_ip1, lidar_params, feat_params)
 
-        # print(len(feat_i.edge_points), len(feat_i.planar_points))
-        # feat_i.edge_points = []
-        # feat_ip1.edge_points = []
+        # Downsample features
+        # edges
+        edges = feat_i.edge_points
+        feat_i.edge_points = random.sample(edges, int(len(edges) * args.percent_edge))
+        edges = feat_ip1.edge_points
+        feat_ip1.edge_points = random.sample(edges, int(len(edges) * args.percent_edge))
+        # planar
+        planar = feat_i.planar_points
+        feat_i.planar_points = random.sample(
+            planar, int(len(planar) * args.percent_planar)
+        )
+        planar = feat_ip1.planar_points
+        feat_ip1.planar_points = random.sample(
+            planar, int(len(planar) * args.percent_planar)
+        )
 
         detail = loam.RegistrationDetail()
         i_T_ip1 = loam.registerFeatures(
@@ -314,26 +322,14 @@ def main():
         num_edges.append(len(feat_i.edge_points))
         num_planar.append(len(feat_i.planar_points))
 
-        # if args.visualize:
-        #     pcd_ip1 = (
-        #         np.array(pcd_ip1[::50]) @ odom_pose.rotation().matrix().T
-        #         + odom_pose.translation()
-        #     )
-        #     map = np.vstack((map, pcd_ip1))
-        #     if i % 100 == 0:
-        #         rr.log(
-        #             "map/points",
-        #             rr.Points3D(map, colors=[[0, 255, 0]], radii=0.1),
-        #         )
-
     # print(
     #     f"Length: {length}, ERROR: {ate(gt, sol)}, ThreshEdge: {args.threshold_edge}, ThreshPlanar: {args.threshold_planar}, AvgEdges: {np.mean(num_edges)}, AvgPlanar: {np.mean(num_planar)}"
     # )
     print(
         length,
         ate(gt, sol),
-        args.threshold_edge,
-        args.threshold_planar,
+        args.percent_edge,
+        args.percent_planar,
         np.mean(num_edges),
         np.mean(num_planar),
     )
