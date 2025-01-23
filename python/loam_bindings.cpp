@@ -23,7 +23,7 @@ PYBIND11_MODULE(loam_python, m) {
 
   py::class_<loam::LidarParams>(m, "LidarParams")
       .def(py::init<size_t, size_t, double, double>(),  // Constructor
-           py::arg("scan_lines"), py::arg("points_per_line"), py::arg("min_range"), py::arg("max_range"))
+           py::kw_only(), py::arg("scan_lines"), py::arg("points_per_line"), py::arg("min_range"), py::arg("max_range"))
       .def_readonly("scan_lines", &loam::LidarParams::scan_lines)
       .def_readonly("points_per_line", &loam::LidarParams::points_per_line)
       .def_readonly("min_range", &loam::LidarParams::min_range)
@@ -50,7 +50,7 @@ PYBIND11_MODULE(loam_python, m) {
 
   py::class_<Eigen::Quaterniond>(m, "Quaterniond")
       .def(py::init<double, double, double, double>(),  // Constructor
-           py::arg("w"), py::arg("x"), py::arg("y"), py::arg("x"))
+           py::kw_only(), py::arg("w"), py::arg("x"), py::arg("y"), py::arg("z"))
       .def("w", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::w)
       .def("x", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::x)
       .def("y", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::y)

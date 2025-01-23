@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.15)
 set (CMAKE_CXX_STANDARD 17)
 include(FetchContent)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 message(STATUS "================  BUILDING LOAM  ======================")
 
 # Dependencies
