@@ -38,6 +38,14 @@ PYBIND11_MODULE(loam_python, m) {
    * ##    ##  ##       ##     ## ##     ## ##          ##    ##    ##     ##
    *  ######   ########  #######  ##     ## ########    ##    ##     ##    ##
    */
+  py::class_<Eigen::Quaterniond>(m, "Quaterniond")
+      .def(py::init<double, double, double, double>(),  // Constructor
+           py::kw_only(), py::arg("w"), py::arg("x"), py::arg("y"), py::arg("z"))
+      .def("w", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::w)
+      .def("x", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::x)
+      .def("y", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::y)
+      .def("z", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::z);
+
   py::class_<loam::Pose3d>(m, "Pose3d")
       .def(py::init<Eigen::Quaterniond, Eigen::Vector3d>(),  // Constructor
            py::arg("rotation"), py::arg("translation"))
@@ -47,14 +55,6 @@ PYBIND11_MODULE(loam_python, m) {
       .def("act", &loam::Pose3d::act, py::arg("point"))
       .def_readwrite("rotation", &loam::Pose3d::rotation)
       .def_readwrite("translation", &loam::Pose3d::translation);
-
-  py::class_<Eigen::Quaterniond>(m, "Quaterniond")
-      .def(py::init<double, double, double, double>(),  // Constructor
-           py::kw_only(), py::arg("w"), py::arg("x"), py::arg("y"), py::arg("z"))
-      .def("w", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::w)
-      .def("x", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::x)
-      .def("y", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::y)
-      .def("z", (const double &(Eigen::Quaterniond::*)() const) & Eigen::Quaterniond::z);
 
   /**
    * ######## ########    ###    ######## ##     ## ########  ########  ######
