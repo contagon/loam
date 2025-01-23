@@ -1,5 +1,5 @@
 project(Loam CXX C)
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.15)
 set (CMAKE_CXX_STANDARD 17)
 include(FetchContent)
 
@@ -11,6 +11,7 @@ find_package(Eigen3 REQUIRED)
 # Ceres - used to solve ICF in registration 
 set(BUILD_EXAMPLES OFF CACHE BOOL "Do not build ceres examples [slow]" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "Do not build ceres tests [slow]" FORCE)
+set(BUILD_BENCHMARKS OFF CACHE BOOL "Do no build ceres benchmarks [slow]" FORCE)
 set(PROVIDE_UNINSTALL_TARGET OFF CACHE BOOL "Do not build ceres uninstall target")
 FetchContent_Declare(
   ceres
@@ -32,7 +33,7 @@ FetchContent_MakeAvailable(nanoflann)
 # Define the library
 file(GLOB loam_srcs "${CMAKE_CURRENT_SOURCE_DIR}/loam/src/*.cpp")
 file(GLOB loam_hdrs "${CMAKE_CURRENT_SOURCE_DIR}/loam/include/loam/*.h")
-add_library(loam SHARED ${loam_srcs} ${loam_hdrs})
+add_library(loam ${loam_srcs} ${loam_hdrs})
 target_link_libraries(loam PUBLIC Eigen3::Eigen Ceres::ceres nanoflann)
 target_include_directories(loam PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/loam/include")
 

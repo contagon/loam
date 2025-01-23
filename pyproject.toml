@@ -1,0 +1,29 @@
+[project]
+name = "loam"
+authors = [{ name = "Dan McGann" }]
+maintainers = [{ name = "Dan McGann" }]
+version = "0.1.0"
+description = "Lidar Odometry and Mapping"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["lidar", "odometry", "mapping", "robotics"]
+dependencies = ["numpy>=2.2.2"]
+
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[tool.uv]
+dev-dependencies = [
+    "cmake>=3.30.3",
+    "pybind11>=2.13.6",
+    "ruff>=0.6.8",
+    "scikit-build-core>=0.10.7",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake.define]
+LOAM_BUILD_PYTHON = true
