@@ -11,9 +11,15 @@ class FeatureExtractionParams:
     occlusion_thresh: float
     parallel_thresh: float
     planar_feat_threshold: float
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self) -> None:
         ...
 class LidarParams:
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self, *, scan_lines: int, points_per_line: int, min_range: float, max_range: float) -> None:
         ...
     @property
@@ -31,6 +37,9 @@ class LidarParams:
 class LoamFeatures:
     edge_points: list[numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]]
     planar_points: list[numpy.ndarray[typing.Any, numpy.dtype[numpy.float64]]]
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self) -> None:
         ...
 class Pose3d:
@@ -38,6 +47,9 @@ class Pose3d:
     translation: numpy.ndarray[tuple[typing.Literal[3], typing.Literal[1]], numpy.dtype[numpy.float64]]
     @staticmethod
     def Identity() -> Pose3d:
+        ...
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
         ...
     def __init__(self, rotation: Quaterniond, translation: numpy.ndarray[tuple[typing.Literal[3], typing.Literal[1]], numpy.dtype[numpy.float64]]) -> None:
         ...
@@ -48,6 +60,9 @@ class Pose3d:
     def inverse(self) -> Pose3d:
         ...
 class Quaterniond:
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self, *, w: float, x: float, y: float, z: float) -> None:
         ...
     def w(self) -> float:
@@ -61,6 +76,9 @@ class Quaterniond:
 class RegistrationDetail:
     iteration_info: list[RegistrationIterationInfo]
     termination_type: RegistrationTerminationType
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self) -> None:
         ...
 class RegistrationIterationInfo:
@@ -68,6 +86,9 @@ class RegistrationIterationInfo:
     estimate_update: Pose3d
     plane_associations: list[tuple[int, int]]
     target_T_source_init: Pose3d
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self, target_T_source_init: Pose3d, edge_associations: list[tuple[int, int]], plane_associations: list[tuple[int, int]], estimate_update: Pose3d) -> None:
         ...
 class RegistrationParams:
@@ -83,6 +104,9 @@ class RegistrationParams:
     num_plane_neighbors: int
     position_convergence_thresh: float
     rotation_convergence_thresh: float
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __init__(self) -> None:
         ...
 class RegistrationTerminationType:
@@ -99,6 +123,9 @@ class RegistrationTerminationType:
     INSUFFICIENT_ASSOCIATIONS: typing.ClassVar[RegistrationTerminationType]  # value = <RegistrationTerminationType.INSUFFICIENT_ASSOCIATIONS: 2>
     MAX_ITER: typing.ClassVar[RegistrationTerminationType]  # value = <RegistrationTerminationType.MAX_ITER: 1>
     __members__: typing.ClassVar[dict[str, RegistrationTerminationType]]  # value = {'CONVERGED': <RegistrationTerminationType.CONVERGED: 0>, 'MAX_ITER': <RegistrationTerminationType.MAX_ITER: 1>, 'INSUFFICIENT_ASSOCIATIONS': <RegistrationTerminationType.INSUFFICIENT_ASSOCIATIONS: 2>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
