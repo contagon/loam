@@ -43,6 +43,9 @@ LoamFeatures<PointType, Alloc> extractFeatures(const std::vector<PointType, Allo
       // Search smallest to largest [i.e. planar features] WARN: Mutates out_features + valid_mask
       features_internal::extractSectorPlanarFeatures(sector_start_pt, sector_end_pt, input_scan, curvature, params,
                                                      out_features, valid_mask);
+      // Search smallest to largest [i.e. point features] WARN: Mutates out_features + valid_mask
+      features_internal::extractSectorPointFeatures(sector_start_pt, sector_end_pt, input_scan, curvature, params,
+                                                    out_features, valid_mask);
 
     }  // end sector search
   }  // end scan line search
@@ -177,6 +180,41 @@ void extractSectorPlanarFeatures(const size_t& sector_start_point, const size_t&
     if (num_sector_planar_features > params.max_planar_feats_per_sector) break;
 
   }  // end feature search in sector
+}
+
+/*********************************************************************************************************************/
+template <typename PointType, template <typename> class Alloc>
+void extractSectorPointFeatures(const size_t& sector_start_point, const size_t& sector_end_point,
+                                const std::vector<PointType, Alloc<PointType>>& input_scan,
+                                const std::vector<PointCurvature>& curvature, const FeatureExtractionParams& params,
+                                LoamFeatures<PointType, Alloc>& out_features, std::vector<bool>& valid_mask) {
+  size_t num_sector_point_features = 0;
+
+  // Figure out how many we may have
+  std::vector<size_t> unused_points;
+  for (size_t idx = sector_start_point; idx <= sector_end_point; idx++) {
+    if (valid_mask[idx]) {
+      unused_points.push_back(idx);
+    }
+  }
+
+  // By what factor do we have too many?
+  size_t factor = 1 + unused_points.size() / params.max_point_feats_per_sector;
+  // Do "factor" number of passes over the points until we get enough
+  // This should help spread them out evenly
+  for (size_t offset = 0; offset < factor; offset++) {
+    for (size_t unused_idx = offset; unused_idx < unused_points.size(); unused_idx += factor) {
+      const size_t idx = unused_points[unused_idx];
+      if (valid_mask[idx]) {
+        out_features.point_points.push_back(input_scan.at(idx));  // Add to points
+        for (size_t n = 0; n < params.neighbor_points; n++) {     // update mask
+          valid_mask[idx + n] = false;
+          valid_mask[idx - n] = false;
+        }
+        num_sector_point_features++;
+      }
+    }
+  }
 }
 
 }  // namespace features_internal

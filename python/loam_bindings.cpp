@@ -72,6 +72,7 @@ PYBIND11_MODULE(loam_python, m) {
       .def_readwrite("number_sectors", &loam::FeatureExtractionParams::number_sectors)
       .def_readwrite("max_edge_feats_per_sector", &loam::FeatureExtractionParams::max_edge_feats_per_sector)
       .def_readwrite("max_planar_feats_per_sector", &loam::FeatureExtractionParams::max_planar_feats_per_sector)
+      .def_readwrite("max_point_feats_per_sector", &loam::FeatureExtractionParams::max_point_feats_per_sector)
       .def_readwrite("edge_feat_threshold", &loam::FeatureExtractionParams::edge_feat_threshold)
       .def_readwrite("planar_feat_threshold", &loam::FeatureExtractionParams::planar_feat_threshold)
       .def_readwrite("occlusion_thresh", &loam::FeatureExtractionParams::occlusion_thresh)
@@ -80,7 +81,8 @@ PYBIND11_MODULE(loam_python, m) {
   py::class_<loam::LoamFeatures<py::array_t<double>>>(m, "LoamFeatures")
       .def(py::init<>())  // Constructor
       .def_readwrite("edge_points", &loam::LoamFeatures<py::array_t<double>>::edge_points)
-      .def_readwrite("planar_points", &loam::LoamFeatures<py::array_t<double>>::planar_points);
+      .def_readwrite("planar_points", &loam::LoamFeatures<py::array_t<double>>::planar_points)
+      .def_readwrite("point_points", &loam::LoamFeatures<py::array_t<double>>::point_points);
 
   m.def("extractFeatures", &loam::extractFeatures<loam::AtAccessor, py::array_t<double>, std::allocator>,
         py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams());

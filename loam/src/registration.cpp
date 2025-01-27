@@ -48,6 +48,12 @@ std::vector<std::pair<size_t, size_t>> associateEdges(const RegistrationParams& 
     auto [line, condition_number] = geometry_internal::fitLine(neighbor_edge_points);
     if (condition_number < params.min_line_condition_number) continue;  // GUARD: Edge points not co-linear
 
+    // if (line.a.array().isNaN().any() || line.b.array().isNaN().any()) {
+    //   std::cout << "NaN in a line!" << std::endl;
+    //   std::cout << "Points: " << std::endl << neighbor_edge_points << std::endl;
+    //   std::cout << "Line: " << std::endl << line.a << std::endl << line.b << std::endl;
+    // }
+
     // Construct the cost function and add it to the problem
     // Note the point has already been transformed by the current estimate
     // Therefore WRT the edge cost function class
@@ -89,9 +95,15 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
     auto [plane, avg_dist] = geometry_internal::fitPlane(neighbor_plane_points);
     if (avg_dist > params.max_avg_point_plane_dist) continue;  // GUARD: Plane points not co-planar
 
+    // if (plane.normal.array().isNaN().any() || std::isnan(plane.d)) {
+    //   std::cout << "NaN in a Plane!" << std::endl;
+    //   std::cout << "Points: " << std::endl << neighbor_plane_points << std::endl;
+    //   std::cout << "Plane: " << std::endl << plane.normal << std::endl << plane.d << std::endl;
+    // }
+
     // Construct the cost function and add it to the problem
     // Note the point has already been transformed by the current estimate
-    // Therefore WRT the plane cost function class 
+    // Therefore WRT the plane cost function class
     //     - The source frame = current estimate of the target frame
     //     - The target frame = the "true" target frame
     problem.AddResidualBlock(PlaneCostFunction::Create(point_tgt, plane), new ceres::HuberLoss(1.0),

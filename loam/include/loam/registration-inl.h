@@ -51,6 +51,7 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
     options.max_num_iterations = 4;
+    options.num_threads = 1;
     // options.minimizer_progress_to_stdout = true;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);

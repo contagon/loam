@@ -48,6 +48,9 @@ struct FeatureExtractionParams {
   /// @brief The maximum number of planar features to detect in each sector
   /// Reasonable numbers depends on compute power available for registration, with more points registration is expensive
   size_t max_planar_feats_per_sector{5};
+  /// @brief The maximum number of point features to detect in each sector
+  /// Reasonable numbers depends on compute power available for registration, with more points registration is expensive
+  size_t max_point_feats_per_sector{5};
   /// @brief Threshold for edge feature curvature.
   /// The UNNORMALIZED curvature must be greater than this thresh to be considered an edge feature.
   /// WARN: This is an unintuitive param manual tuning and plotting results is recommended
@@ -73,6 +76,8 @@ struct LoamFeatures {
   std::vector<PointType, Alloc<PointType>> edge_points;
   /// @brief A pointcloud of planar feature points
   std::vector<PointType, Alloc<PointType>> planar_points;
+  /// @brief A pointcloud of point features - includes everything not classified as an edge or planar feature
+  std::vector<PointType, Alloc<PointType>> point_points;
 };
 
 /// @brief Structure for storing curvature information for points
@@ -88,7 +93,9 @@ struct PointCurvature {
 };
 
 /// @brief Comparator for PointCurvature used in std algorithms (like sort)
-inline bool curvatureComparator(const PointCurvature& lhs, const PointCurvature& rhs) { return lhs.curvature < rhs.curvature; }
+inline bool curvatureComparator(const PointCurvature& lhs, const PointCurvature& rhs) {
+  return lhs.curvature < rhs.curvature;
+}
 
 /**
  * #### ##    ## ######## ######## ########  ########    ###     ######  ########
@@ -221,6 +228,19 @@ void extractSectorPlanarFeatures(const size_t& sector_start_point, const size_t&
                                  const std::vector<PointType, Alloc<PointType>>& input_scan,
                                  const std::vector<PointCurvature>& curvature, const FeatureExtractionParams& params,
                                  LoamFeatures<PointType, Alloc>& out_features, std::vector<bool>& valid_mask);
+
+/** @brief Extracts point features and updates the mask for a scanline sector defined by [sector_start, sector_end]
+ * This is used internally in feature extraction, requires that curvature is sorted in range [sector_start, sector_end]
+ * WARN: Mutates out_features adding the newly detected features
+ * WARN: Mutates valid_mask marking neighbors of found features invalid
+ *
+ * All param names match the local variable names in extractFeatures
+ */
+template <typename PointType, template <typename> class Alloc>
+void extractSectorPointFeatures(const size_t& sector_start_point, const size_t& sector_end_point,
+                                const std::vector<PointType, Alloc<PointType>>& input_scan,
+                                const std::vector<PointCurvature>& curvature, const FeatureExtractionParams& params,
+                                LoamFeatures<PointType, Alloc>& out_features, std::vector<bool>& valid_mask);
 
 /** @brief Marks edge points as invalid (see computeValidPoints) returns true if the point is marked
  * WARN: Potentially mutates mask if the point is invalid
