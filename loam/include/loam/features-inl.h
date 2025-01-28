@@ -192,7 +192,7 @@ void extractSectorPointFeatures(const size_t& sector_start_point, const size_t& 
 
   // Figure out how many we may have
   std::vector<size_t> unused_points;
-  for (size_t idx = sector_start_point; idx <= sector_end_point; idx++) {
+  for (size_t idx = sector_start_point; idx < sector_end_point; idx++) {
     if (valid_mask[idx]) {
       unused_points.push_back(idx);
     }
@@ -208,11 +208,14 @@ void extractSectorPointFeatures(const size_t& sector_start_point, const size_t& 
       if (valid_mask[idx]) {
         out_features.point_points.push_back(input_scan.at(idx));  // Add to points
         for (size_t n = 0; n < params.neighbor_points; n++) {     // update mask
+          // TODO: make sure we don't get in the way of adjacent sector edge/feature points?
           valid_mask[idx + n] = false;
           valid_mask[idx - n] = false;
         }
         num_sector_point_features++;
       }
+      // Early exit if we have found enough features
+      if (num_sector_point_features > params.max_point_feats_per_sector) break;
     }
   }
 }
