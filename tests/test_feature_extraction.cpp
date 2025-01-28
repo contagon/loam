@@ -15,6 +15,21 @@ struct Point {
   Point(double x, double y, double z) : x(x), y(y), z(z) {}
 };
 
+FeatureExtractionParams get_params() {
+  FeatureExtractionParams params{
+      .neighbor_points = 5,
+      .number_sectors = 6,
+      .max_edge_feats_per_sector = 5,
+      .max_planar_feats_per_sector = 5,
+      .max_point_feats_per_sector = 5,
+      .edge_feat_threshold = 100,
+      .planar_feat_threshold = 0.1,
+      .occlusion_thresh = 0.25,
+      .parallel_thresh = 0.02,
+  };
+  return params;
+}
+
 /**
  *  ######  ##     ## ########  ##     ##    ###    ######## ##     ## ########  ########
  * ##    ## ##     ## ##     ## ##     ##   ## ##      ##    ##     ## ##     ## ##
@@ -37,7 +52,7 @@ TEST(TestLoamFeatureExtraction, TestCurvaturePlane) {
     pcd.push_back(Point(i, 1, 0.0));
   }
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 11, /* min range */ 0.1, /* max range */ 10);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   auto curv = computeCurvature(pcd, lidar_params, params);
 
@@ -68,7 +83,7 @@ TEST(TestLoamFeatureExtraction, TestCurvatureCorner) {
     pcd.push_back(Point(i, abs(i) + 1, 0.0));
   }
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 11, /* min range */ 0.1, /* max range */ 50);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<PointCurvature> curv = computeCurvature(pcd, lidar_params, params);
 
@@ -106,7 +121,7 @@ TEST(TestValidPoints, TestInvalidEdges) {
     pcd.push_back(Point(i * 0.1, 1, 0.0));
   }
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 11, /* min range */ 0.1, /* max range */ 50);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -138,7 +153,7 @@ TEST(TestValidPoints, TestInvalidRanges) {
   for (int i = 1; i <= 5; i++) pcd.push_back(Point(i, 1, 0.0));
 
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 12, /* min range */ 0.5, /* max range */ 6.0);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -169,7 +184,7 @@ TEST(TestValidPoints, TestOcclusionCase1) {
   for (int i = 0; i < 15; i++) pcd.push_back(Point(i * 0.1, 6.0, 0.0));
 
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 30, /* min range */ 0.1, /* max range */ 100);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -204,7 +219,7 @@ TEST(TestValidPoints, TestOcclusionCase2) {
   for (int i = 0; i < 15; i++) pcd.push_back(Point(i * 0.1, 4.0, 0.0));
 
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 30, /* min range */ 0.1, /* max range */ 100);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -240,7 +255,7 @@ TEST(TestValidPoints, TestParallelPlaneCase1) {
   for (int i = 1; i <= 15; i++) pcd.push_back(Point(i * 0.1, 2.1, 0.0));
 
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 31, /* min range */ 0.1, /* max range */ 100);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -277,7 +292,7 @@ TEST(TestValidPoints, TestParallelPlaneCase2) {
   for (int i = 1; i <= 15; i++) pcd.push_back(Point(i * 0.1, 2.0, 0.0));
 
   LidarParams lidar_params(/* scan_lines */ 1, /* pts/line */ 31, /* min range */ 0.1, /* max range */ 100);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   std::vector<bool> valid_mask = computeValidPoints(pcd, lidar_params, params);
 
@@ -312,7 +327,7 @@ TEST(TestFeatureExtraction, NonStdAllocator) {
   // Really a compile time test
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> pcd;
   LidarParams lidar_params(/* scan_lines */ 0, /* pts/line */ 0, /* min range */ 0.1, /* max range */ 100);
-  FeatureExtractionParams params{5, 6, 5, 5, 100, 0.1, 0.25, 0.02};
+  auto params = get_params();
 
   LoamFeatures<Eigen::Vector3d, Eigen::aligned_allocator> out =
       extractFeatures<loam::ParenAccessor>(pcd, lidar_params, params);

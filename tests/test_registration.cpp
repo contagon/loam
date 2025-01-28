@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Eigen/Dense"
-#include "loam/loam.h"
+#include "loam/registration.h"
 
 using namespace loam;
 
@@ -149,36 +149,34 @@ TEST(TestLoamRegistration, TestSimpleLargeRotation) {
   ASSERT_NEAR(err_trans(2), 0.0, 1e-3);
 }
 
-// TEST(TestLoamRegistration, TestPointRegistration) {
-//   Eigen::Vector3d axis(1, 3, 1);
-//   // Pose3d source_T_target(Eigen::Quaterniond(Eigen::AngleAxisd(0.2, axis / axis.norm())),
-//   //                        Eigen::Vector3d(-0.01, 0.02, 0.1));
-//   // Pose3d source_T_target(Eigen::Quaterniond::Identity(), Eigen::Vector3d::Zero());
-//   Pose3d source_T_target = Pose3d::Identity();
-//   LoamFeatures<Eigen::Vector3d> target_features = constructSimpleScene();
-//   for (auto pp : target_features.planar_points) {
-//     target_features.point_points.push_back(pp);
-//   }
-//   for (auto pp : target_features.edge_points) {
-//     target_features.point_points.push_back(pp);
-//   }
-//   target_features.planar_points.clear();
-//   target_features.edge_points.clear();
+TEST(TestLoamRegistration, TestPointRegistration) {
+  Eigen::Vector3d axis(1, 2, 3);
+  Pose3d source_T_target(Eigen::Quaterniond(Eigen::AngleAxisd(0.1, axis / axis.norm())),
+                         Eigen::Vector3d(-0.3, 0.3, 0.3));
 
-//   LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
+  LoamFeatures<Eigen::Vector3d> target_features;
+  target_features.point_points.push_back(Eigen::Vector3d(0, 0, 0));
+  for (double x = 0; x < 10; x += 0.1) {
+    target_features.point_points.push_back(Eigen::Vector3d(x, 0, 0));
+    target_features.point_points.push_back(Eigen::Vector3d(0, x, 0));
+    target_features.point_points.push_back(Eigen::Vector3d(0, 0, x));
+  }
 
-//   // Run the registration
-//   Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d());
+  LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
 
-//   // Compute the error
-//   Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;
-//   Eigen::Vector3d err_trans = source_T_target.rotation * target_T_source.translation + source_T_target.translation;
+  // Run the registration
+  RegistrationParams params;
+  params.max_iterations = 100;
+  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params);
+  // Compute the error
+  Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;
+  Eigen::Vector3d err_trans = source_T_target.rotation * target_T_source.translation + source_T_target.translation;
 
-//   ASSERT_NEAR(err_rot.angularDistance(Eigen::Quaterniond::Identity()), 0.0, 1e-4);
-//   ASSERT_NEAR(err_trans(0), 0.0, 1e-3);
-//   ASSERT_NEAR(err_trans(1), 0.0, 1e-3);
-//   ASSERT_NEAR(err_trans(2), 0.0, 1e-3);
-// }
+  ASSERT_NEAR(err_trans(0), 0.0, 1e-3);
+  ASSERT_NEAR(err_trans(1), 0.0, 1e-3);
+  ASSERT_NEAR(err_trans(2), 0.0, 1e-3);
+  ASSERT_NEAR(err_rot.angularDistance(Eigen::Quaterniond::Identity()), 0.0, 1e-4);
+}
 
 TEST(TestLoamRegistration, TestCompositionDirection) {
   // This test was developed to ensure that the relative transform computed in each iteration of registerFeatures
