@@ -38,6 +38,11 @@ namespace loam {
  *    ##       ##    ##        ########  ######
  */
 struct RegistrationParams {
+  enum PlanarVersion { PSEUDO_PLANAR, TRUE_PLANAR };
+
+  /// @brief The version of planar points to use for registration
+  PlanarVersion planar_version{TRUE_PLANAR};
+
   /// @brief The number of edge points to search for in the target when associating a source edge point
   // Must be >= 2, Reasonable numbers are just greater than 2
   size_t num_edge_neighbors{5};
@@ -61,6 +66,9 @@ struct RegistrationParams {
   size_t min_plane_fit_points{4};
   /// @brief The max average distance from component points for the plane to be considered valid
   double max_avg_point_plane_dist{0.1};
+
+  /// @brief the epsilon to use for orthogonal normal directions for pseudo-planar points
+  double pseudo_plane_normal_epsilon{1e-3};
 
   /// @brief The max distance to target points when associating a source point
   /// If zero no max range is used, reasonable values are ~1m for most robotic applications
@@ -207,6 +215,46 @@ class PlaneCostFunction {
   /// @brief Helper to return the cost function as a ceres auto diff cost function
   static ceres::CostFunction* Create(Eigen::Vector3d source_pt, geometry_internal::Plane plane) {
     return new ceres::AutoDiffCostFunction<PlaneCostFunction, 1, 4, 3>(new PlaneCostFunction(source_pt, plane));
+  }
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+/// @brief Defines the cost function between a point and a plane. NOTE: we do not use [1] Eq.(2)
+class PseudoPlaneCostFunction {
+  /** FIELDS */
+ private:
+  /// @brief The planar point in the source frame
+  const Eigen::Matrix<double, 3, 1> source_pt_;
+  /// @brief The origin of the point has been matched to
+  const Eigen::Matrix<double, 3, 1> origin_;
+  /// @brief The plane the source point has been matched to
+  const Eigen::Matrix<double, 3, 1> normal_;
+  /// @brief The weight for the orthogonal directions
+  double epsilon_;
+
+  /** Interface */
+ public:
+  /** @brief Constructor
+   * @param source_pt: The point in the source frame matched with the plane
+   * @param origin: The origin of the plane in the target frame
+   * @param normal: The normal of the plan in the target frame
+   **/
+  PseudoPlaneCostFunction(Eigen::Vector3d source_pt, Eigen::Vector3d origin, Eigen::Vector3d normal, double epsilon)
+      : source_pt_(source_pt), origin_(origin), normal_(normal), epsilon_(epsilon) {}
+
+  /** @brief Computes the loss as the point-to-plane distance
+   * @param t_R_s_ptr: The current relative rotation solution target_R_source
+   * @param t_p_s_ptr: The current relative position solution target_p_source
+   * @param residuals_ptr: Container for the error of this loss
+   */
+  template <typename T>
+  bool operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const;
+
+  /// @brief Helper to return the cost function as a ceres auto diff cost function
+  static ceres::CostFunction* Create(Eigen::Vector3d source_pt, Eigen::Vector3d origin, Eigen::Vector3d normal,
+                                     double epsilon) {
+    return new ceres::AutoDiffCostFunction<PseudoPlaneCostFunction, 3, 4, 3>(
+        new PseudoPlaneCostFunction(source_pt, origin, normal, epsilon));
   }
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

@@ -77,7 +77,9 @@ TEST(TestLoamRegistration, TestSimpleCase) {
   LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
 
   // Run the registration
-  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d());
+  RegistrationParams params;
+  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
   Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;
@@ -97,7 +99,9 @@ TEST(TestLoamRegistration, TestSimpleLargeTranslation) {
   LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
 
   // Run the registration
-  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d());
+  RegistrationParams params;
+  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
   Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;
@@ -117,7 +121,9 @@ TEST(TestLoamRegistration, TestSimpleEvenLargerTranslation) {
   LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
 
   // Run the registration
-  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d());
+  RegistrationParams params;
+  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
   Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;
@@ -137,7 +143,9 @@ TEST(TestLoamRegistration, TestSimpleLargeRotation) {
   LoamFeatures<Eigen::Vector3d> source_features = transformFeatures(target_features, source_T_target);
 
   // Run the registration
-  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d());
+  RegistrationParams params;
+  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
   Eigen::Quaterniond err_rot = source_T_target.rotation * target_T_source.rotation;

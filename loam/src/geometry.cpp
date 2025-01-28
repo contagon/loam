@@ -53,7 +53,8 @@ std::pair<Line, double> fitLine(Eigen::MatrixXd points) {
   Line line(center + 0.1 * line_direction, center - 0.1 * line_direction);
   // Compute the condition number being careful to avoid a division by zero
   double condition_number = std::numeric_limits<double>::max();
-  if (pca.eigenvalues()(2) > 1e-12) pca.eigenvalues()(2) / pca.eigenvalues()(0);
+  // TODO: What was this for?
+  // if (pca.eigenvalues()(2) > 1e-12) pca.eigenvalues()(2) / pca.eigenvalues()(0);
 
   return std::make_pair(line, condition_number);
 }
@@ -66,7 +67,11 @@ std::pair<Plane, double> fitPlane(Eigen::MatrixXd points) {
   // Solve the least squares problem
   Eigen::Vector3d abc = points.colPivHouseholderQr().solve(ones_vec);
   // Convert the abc parameterization to normal, d representation
-  Plane plane(abc / abc.norm(), 1.0 / abc.norm());
+  Eigen::Vector3d n = abc / abc.norm();
+  // Switched to using the closest point as the distance, seems to give much better results
+  double d = points.row(0).dot(n);
+  // double d = 1.0 / abc.norm();
+  Plane plane(n, d);
   // Compute the average distance to the plane
   double avg_dist = (points * plane.normal - (ones_vec * plane.d)).mean();
   return std::make_pair(plane, avg_dist);
