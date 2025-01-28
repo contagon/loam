@@ -62,6 +62,10 @@ struct RegistrationParams {
   /// @brief The max average distance from component points for the plane to be considered valid
   double max_avg_point_plane_dist{0.1};
 
+  /// @brief The max distance to target points when associating a source point
+  /// If zero no max range is used, reasonable values are ~1m for most robotic applications
+  double max_point_neighbor_dist{2.0};
+
   /// @brief The maximum number of ICF iterations permitted
   /// Reasonable numbers depend on real-time and accuracy requirements of the system
   size_t max_iterations{10};
@@ -125,7 +129,7 @@ struct RegistrationDetail {
  * @returns The transform from source to target (target_T_source)
  * WARN: Mutates detail if provided
  */
-template <template <typename> class Accessor = FieldAccessor, typename PointType, template <typename> class  Alloc>
+template <template <typename> class Accessor = FieldAccessor, typename PointType, template <typename> class Alloc>
 Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const LoamFeatures<PointType, Alloc>& target,
                         const Pose3d& target_T_source_init, const RegistrationParams& params = RegistrationParams(),
                         std::shared_ptr<RegistrationDetail> detail = nullptr);
@@ -207,6 +211,40 @@ class PlaneCostFunction {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+/// @brief Defines the cost function between a point and a point.
+class PointCostFunction {
+  /** FIELDS */
+ private:
+  /// @brief The point in the source frame
+  const Eigen::Matrix<double, 3, 1> source_pt_;
+  /// @brief The point in the target frame
+  const Eigen::Matrix<double, 3, 1> target_pt_;
+
+  /** Interface */
+ public:
+  /** @brief Constructor
+   * @param source_pt: The point in the source frame matched with the plane
+   * @param origin: The origin of the plane in the target frame
+   * @param normal: The normal of the plan in the target frame
+   **/
+  PointCostFunction(Eigen::Vector3d source_pt, Eigen::Vector3d target_pt)
+      : source_pt_(source_pt), target_pt_(target_pt) {}
+
+  /** @brief Computes the loss as the point-to-plane distance
+   * @param t_R_s_ptr: The current relative rotation solution target_R_source
+   * @param t_p_s_ptr: The current relative position solution target_p_source
+   * @param residuals_ptr: Container for the error of this loss
+   */
+  template <typename T>
+  bool operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const;
+
+  /// @brief Helper to return the cost function as a ceres auto diff cost function
+  static ceres::CostFunction* Create(Eigen::Vector3d source_pt, Eigen::Vector3d target_pt) {
+    return new ceres::AutoDiffCostFunction<PointCostFunction, 3, 4, 3>(new PointCostFunction(source_pt, target_pt));
+  }
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
 /** @brief Computes associations between edge points in source and edges in target, validates the associations, and adds
  * the appropriate cost function to the ceres problem.
  * NOTE: Params as named identical to their name in the body of registerFeatures
@@ -227,6 +265,19 @@ std::vector<std::pair<size_t, size_t>> associateEdges(const RegistrationParams& 
  * @returns The associations as a list of pair [src_idx, target_idx] where target_idx is the closest neighbor
  */
 std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams& params,
+                                                       const LoamFeatures<Eigen::Vector3d>& source_eig,
+                                                       const LoamFeatures<Eigen::Vector3d>& target_eig,
+                                                       const kdtree_internal::KDTree& target_plane_kdtree,
+                                                       const Pose3d& target_T_source_est, Pose3d& estimate_update,
+                                                       ceres::Problem& problem);
+
+/** @brief Computes associations between points in source and points in target, validates the associations, and
+ * adds the appropriate cost function to the ceres problem.
+ * NOTE: Params as named identical to their name in the body of registerFeatures
+ * WARN: Mutates problem (mutation used to avoid an extra iteration over all cost functions)
+ * @returns The associations as a list of pair [src_idx, target_idx] where target_idx is the closest neighbor
+ */
+std::vector<std::pair<size_t, size_t>> associatePoints(const RegistrationParams& params,
                                                        const LoamFeatures<Eigen::Vector3d>& source_eig,
                                                        const LoamFeatures<Eigen::Vector3d>& target_eig,
                                                        const kdtree_internal::KDTree& target_plane_kdtree,

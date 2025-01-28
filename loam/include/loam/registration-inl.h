@@ -21,6 +21,8 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
   kdtree_internal::KDTree target_edge_kdtree(3, target_edge_adaptor, kdtree_internal::KDTreeParams(20));
   kdtree_internal::KDTreeDataAdaptor target_plane_adaptor(target_eig.planar_points);
   kdtree_internal::KDTree target_plane_kdtree(3, target_plane_adaptor, kdtree_internal::KDTreeParams(20));
+  kdtree_internal::KDTreeDataAdaptor target_point_adaptor(target_eig.point_points);
+  kdtree_internal::KDTree target_point_kdtree(3, target_point_adaptor, kdtree_internal::KDTreeParams(20));
 
   // Setup the parameters of the optimization (the relative pose)
   Pose3d target_T_source_est(target_T_source_init);
@@ -41,8 +43,10 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
                                                             target_T_source_est, estimate_update, problem);
     auto plane_assoc = registration_internal::associatePlanes(params, source_eig, target_eig, target_plane_kdtree,
                                                               target_T_source_est, estimate_update, problem);
+    auto point_assoc = registration_internal::associatePoints(params, source_eig, target_eig, target_point_kdtree,
+                                                              target_T_source_est, estimate_update, problem);
 
-    if (edge_assoc.size() + plane_assoc.size() < params.min_associations) {
+    if (edge_assoc.size() + plane_assoc.size() + point_assoc.size() < params.min_associations) {
       termination_type = RegistrationDetail::TerminationType::INSUFFICIENT_ASSOCIATIONS;
       break;
     }
@@ -114,6 +118,23 @@ bool PlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_
 
   // Compute the loss
   residuals_ptr[0] = geometry_internal::pointToPlaneDistance<T>(target_pt_, plane_.normal.cast<T>(), T(plane_.d));
+  return true;
+}
+
+/*********************************************************************************************************************/
+template <typename T>
+bool PointCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
+  Eigen::Map<const Eigen::Quaternion<T>> t_R_s(t_R_s_ptr);
+  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_p_s(t_p_s_ptr);
+  const Eigen::Matrix<T, 3, 1> target_pt = target_pt_.cast<T>();
+
+  // Transform the point into the target frame given the current estimate
+  const Eigen::Matrix<T, 3, 1> target_pt_est_ = t_R_s * source_pt_.cast<T>() + t_p_s;
+
+  // Compute the loss
+  residuals_ptr[0] = target_pt[0] - target_pt_est_[0];
+  residuals_ptr[1] = target_pt[1] - target_pt_est_[1];
+  residuals_ptr[2] = target_pt[2] - target_pt_est_[2];
   return true;
 }
 

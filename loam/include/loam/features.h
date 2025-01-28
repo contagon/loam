@@ -201,6 +201,9 @@ LoamFeatures<Eigen::Vector3d> featuresToEigen(const LoamFeatures<PointType, Allo
   for (const PointType pt : in_features.planar_points) {
     result.planar_points.push_back(pointToEigen<Accessor>(pt));
   }
+  for (const PointType pt : in_features.point_points) {
+    result.point_points.push_back(pointToEigen<Accessor>(pt));
+  }
   return result;
 }
 

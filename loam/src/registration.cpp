@@ -114,5 +114,38 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
   return plane_associations;
 }
 
+/*********************************************************************************************************************/
+std::vector<std::pair<size_t, size_t>> associatePoints(const RegistrationParams& params,
+                                                       const LoamFeatures<Eigen::Vector3d>& source_eig,
+                                                       const LoamFeatures<Eigen::Vector3d>& target_eig,
+                                                       const kdtree_internal::KDTree& target_point_kdtree,
+                                                       const Pose3d& target_T_source_est, Pose3d& estimate_update,
+                                                       ceres::Problem& problem) {
+  std::vector<std::pair<size_t, size_t>> point_associations;
+  point_associations.reserve(source_eig.point_points.size());
+  for (size_t source_idx = 0; source_idx < source_eig.point_points.size(); source_idx++) {
+    // Transform the point into the target frame using the current solution
+    const Eigen::Vector3d point_tgt = target_T_source_est.act(source_eig.point_points.at(source_idx));
+
+    // Associate the query point with target points
+    std::vector<size_t> neighbor_point_idxes =
+        kdtree_internal::knnSearch(target_point_kdtree, point_tgt, 1, params.max_point_neighbor_dist);
+    if (neighbor_point_idxes.size() < 1) continue;  // GUARD: Insufficient Matches
+
+    Eigen::Vector3d point = target_eig.point_points.at(neighbor_point_idxes.front());
+
+    // Construct the cost function and add it to the problem
+    // Note the point has already been transformed by the current estimate
+    // Therefore WRT the point cost function class
+    //     - The source frame = current estimate of the target frame
+    //     - The target frame = the "true" target frame
+    problem.AddResidualBlock(PointCostFunction::Create(point_tgt, point), new ceres::HuberLoss(1.0),
+                             estimate_update.rotation.coeffs().data(), estimate_update.translation.data());
+    // Accumulate the association
+    point_associations.emplace_back(source_idx, neighbor_point_idxes.front());
+  }
+  return point_associations;
+}
+
 }  // namespace registration_internal
 }  // namespace loam
