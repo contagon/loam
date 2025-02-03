@@ -6,7 +6,6 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <cstddef>
-#include <exception>
 #include <sstream>
 #include <vector>
 

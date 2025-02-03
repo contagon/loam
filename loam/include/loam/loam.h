@@ -4,8 +4,9 @@
  */
 #pragma once
 
+#include "loam/common.h"
+#include "loam/deskew.h"
+#include "loam/features.h"
 #include "loam/geometry.h"
 #include "loam/kdtree.h"
-#include "loam/common.h"
-#include "loam/features.h"
 #include "loam/registration.h"

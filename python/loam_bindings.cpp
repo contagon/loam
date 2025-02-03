@@ -56,6 +56,13 @@ PYBIND11_MODULE(loam_python, m) {
       .def_readwrite("rotation", &loam::Pose3d::rotation)
       .def_readwrite("translation", &loam::Pose3d::translation);
 
+  // ------------------------- Deskew ------------------------- //
+  m.def("deskewConstantVelocity", &loam::deskewConstantVelocity<loam::AtAccessor, py::array_t<double>, std::allocator>,
+        py::arg("input_scan"), py::arg("rel_time_stamps"), py::arg("vel_rot"), py::arg("vel_trans"));
+
+  m.def("deskewInterpolate", &loam::deskewInterpolate<loam::AtAccessor, py::array_t<double>, std::allocator>,
+        py::arg("input_scan"), py::arg("rel_time_stamps"), py::arg("pose_start"), py::arg("pose_end"));
+
   /**
    * ######## ########    ###    ######## ##     ## ########  ########  ######
    * ##       ##         ## ##      ##    ##     ## ##     ## ##       ##    ##
