@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "loam/features.h"
 #include "loam/loam.h"
 
 // Use short form as it appears a lot
@@ -73,6 +74,11 @@ PYBIND11_MODULE(loam_python, m) {
    * ##       ######## ##     ##    ##     #######  ##     ## ########  ######
    */
 
+  py::enum_<loam::FeatureExtractionParams::Curvature>(m, "Curvature")
+      .value("LOAM", loam::FeatureExtractionParams::Curvature::LOAM)
+      .value("EIGEN", loam::FeatureExtractionParams::Curvature::EIGEN)
+      .export_values();
+
   py::class_<loam::FeatureExtractionParams>(m, "FeatureExtractionParams")
       .def(py::init<>())  // Constructor
       .def_readwrite("neighbor_points", &loam::FeatureExtractionParams::neighbor_points)
@@ -83,7 +89,8 @@ PYBIND11_MODULE(loam_python, m) {
       .def_readwrite("edge_feat_threshold", &loam::FeatureExtractionParams::edge_feat_threshold)
       .def_readwrite("planar_feat_threshold", &loam::FeatureExtractionParams::planar_feat_threshold)
       .def_readwrite("occlusion_thresh", &loam::FeatureExtractionParams::occlusion_thresh)
-      .def_readwrite("parallel_thresh", &loam::FeatureExtractionParams::parallel_thresh);
+      .def_readwrite("parallel_thresh", &loam::FeatureExtractionParams::parallel_thresh)
+      .def_readwrite("curvature_type", &loam::FeatureExtractionParams::curvature_type);
 
   py::class_<loam::LoamFeatures<py::array_t<double>>>(m, "LoamFeatures")
       .def(py::init<>())  // Constructor

@@ -72,17 +72,39 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
       }
       // If not an edge point compute the curvature
       else {
-        // Initialize with the difference term
-        double dx = -(2.0 * params.neighbor_points) * Accessor<PointType>::x(input_scan[idx]);
-        double dy = -(2.0 * params.neighbor_points) * Accessor<PointType>::y(input_scan[idx]);
-        double dz = -(2.0 * params.neighbor_points) * Accessor<PointType>::z(input_scan[idx]);
-        // Iterate over neighbors and accumulate
-        for (size_t n = 1; n <= params.neighbor_points; n++) {
-          dx = dx + Accessor<PointType>::x(input_scan[idx - n]) + Accessor<PointType>::x(input_scan[idx + n]);
-          dy = dy + Accessor<PointType>::y(input_scan[idx - n]) + Accessor<PointType>::y(input_scan[idx + n]);
-          dz = dz + Accessor<PointType>::z(input_scan[idx - n]) + Accessor<PointType>::z(input_scan[idx + n]);
+        // LOAM based curvature
+        if (params.curvature_type == FeatureExtractionParams::Curvature::LOAM) {
+          // Initialize with the difference term
+          double dx = -(2.0 * params.neighbor_points) * Accessor<PointType>::x(input_scan[idx]);
+          double dy = -(2.0 * params.neighbor_points) * Accessor<PointType>::y(input_scan[idx]);
+          double dz = -(2.0 * params.neighbor_points) * Accessor<PointType>::z(input_scan[idx]);
+          // Iterate over neighbors and accumulate
+          for (size_t n = 1; n <= params.neighbor_points; n++) {
+            dx = dx + Accessor<PointType>::x(input_scan[idx - n]) + Accessor<PointType>::x(input_scan[idx + n]);
+            dy = dy + Accessor<PointType>::y(input_scan[idx - n]) + Accessor<PointType>::y(input_scan[idx + n]);
+            dz = dz + Accessor<PointType>::z(input_scan[idx - n]) + Accessor<PointType>::z(input_scan[idx + n]);
+          }
+          curvature.push_back(PointCurvature(idx, dx * dx + dy * dy + dz * dz));
         }
-        curvature.push_back(PointCurvature(idx, dx * dx + dy * dy + dz * dz));
+        // Eigenvalue based curvature
+        else if (params.curvature_type == FeatureExtractionParams::Curvature::EIGEN) {
+          // Prep to compute covariance
+          Eigen::Vector3d center = pointToEigen<Accessor>(input_scan[idx]);
+          Eigen::Matrix<double, Eigen::Dynamic, 3> neighbors(2 * params.neighbor_points, 3);
+
+          for (size_t n = 1; n <= params.neighbor_points; n++) {
+            neighbors.row(2 * n - 2) = pointToEigen<Accessor>(input_scan[idx - n]) - center;
+            neighbors.row(2 * n - 1) = pointToEigen<Accessor>(input_scan[idx + n]) - center;
+          }
+
+          // Compute covariance matrix
+          Eigen::Matrix3d cov = (neighbors.transpose() * neighbors);
+          Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> b(cov);
+          // Invert so that we can use the same convention as LOAM (smaller = planar, larger = edge)
+          auto abs = b.eigenvalues().cwiseAbs();
+          double c = abs[1];
+          curvature.push_back(PointCurvature(idx, c));
+        }
       }
     }
   }

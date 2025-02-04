@@ -66,6 +66,9 @@ struct FeatureExtractionParams {
   /// See computeValidPoints::Check 4 for details
   /// WARN: This is an unintuitive param manual tuning and plotting results is recommended
   double parallel_thresh{0.002};
+
+  enum Curvature { LOAM, EIGEN };
+  Curvature curvature_type{Curvature::LOAM};
 };
 
 /// @brief Structure for storing edge and planar feature points from a scan together
