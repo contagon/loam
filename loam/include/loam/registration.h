@@ -227,10 +227,8 @@ class PseudoPlaneCostFunction {
   const Eigen::Matrix<double, 3, 1> source_pt_;
   /// @brief The origin of the point has been matched to
   const Eigen::Matrix<double, 3, 1> origin_;
-  /// @brief The plane the source point has been matched to
-  const Eigen::Matrix<double, 3, 1> normal_;
-  /// @brief The weight for the orthogonal directions
-  double epsilon_;
+  /// @brief The sqrt of the projector of the plane the source point has been matched to
+  Eigen::Matrix<double, 3, 3> sqrt_projector_;
 
   /** Interface */
  public:
@@ -240,7 +238,17 @@ class PseudoPlaneCostFunction {
    * @param normal: The normal of the plan in the target frame
    **/
   PseudoPlaneCostFunction(Eigen::Vector3d source_pt, Eigen::Vector3d origin, Eigen::Vector3d normal, double epsilon)
-      : source_pt_(source_pt), origin_(origin), normal_(normal), epsilon_(epsilon) {}
+      : source_pt_(source_pt), origin_(origin) {
+    // If epsilon is too small, the matrix P will be singular, use a shortcut to compute things
+    if (epsilon < 1e-6) {
+      sqrt_projector_ = Eigen::Matrix3d::Zero();
+      sqrt_projector_.row(0) = normal;
+    } else {
+      const Eigen::Matrix3d P =
+          (epsilon * Eigen::Matrix3d::Identity()) + ((1.0 - epsilon) * normal * normal.transpose());
+      sqrt_projector_ = P.llt().matrixU();
+    }
+  }
 
   /** @brief Computes the loss as the point-to-plane distance
    * @param t_R_s_ptr: The current relative rotation solution target_R_source
