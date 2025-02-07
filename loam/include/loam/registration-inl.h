@@ -24,6 +24,10 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
   kdtree_internal::KDTreeDataAdaptor target_point_adaptor(target_eig.point_points);
   kdtree_internal::KDTree target_point_kdtree(3, target_point_adaptor, kdtree_internal::KDTreeParams(20));
 
+  // TODO: Is this computing anything? Should we offload it?
+  kdtree_internal::KDTreeDataAdaptor source_plane_adaptor(source_eig.planar_points);
+  kdtree_internal::KDTree source_plane_kdtree(3, source_plane_adaptor, kdtree_internal::KDTreeParams(20));
+
   // Setup the parameters of the optimization (the relative pose)
   Pose3d target_T_source_est(target_T_source_init);
   RegistrationDetail::TerminationType termination_type = RegistrationDetail::TerminationType::MAX_ITER;
@@ -41,8 +45,12 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
     // Compute Associations and accumulate the optimization problem [WARN: Mutates "problem"]
     auto edge_assoc = registration_internal::associateEdges(params, source_eig, target_eig, target_edge_kdtree,
                                                             target_T_source_est, estimate_update, problem);
-    auto plane_assoc = registration_internal::associatePlanes(params, source_eig, target_eig, target_plane_kdtree,
-                                                              target_T_source_est, estimate_update, problem);
+
+    // TODO: Make separate plane-plane option here
+    // TODO: Compute all source normals here to avoid recomputing them
+    auto plane_assoc =
+        registration_internal::associatePlanes(params, source_eig, target_eig, source_plane_kdtree, target_plane_kdtree,
+                                               target_T_source_est, estimate_update, problem);
     auto point_assoc = registration_internal::associatePoints(params, source_eig, target_eig, target_point_kdtree,
                                                               target_T_source_est, estimate_update, problem);
 
@@ -141,6 +149,23 @@ bool PseudoPlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* cons
 
   return true;
 }
+
+/*********************************************************************************************************************/
+template <typename T>
+bool PlanePlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
+  Eigen::Map<const Eigen::Quaternion<T>> t_R_s(t_R_s_ptr);
+  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_p_s(t_p_s_ptr);
+
+  // Transform the point into the target frame given the current estimate
+  const Eigen::Matrix<T, 3, 1> est_target_pt_ = t_R_s * source_pt_.cast<T>() + t_p_s;
+  const Eigen::Matrix<T, 3, 3> est_target_sqrt_projector =
+      t_R_s * source_sqrt_projector_.cast<T>();  // TODO: * t_R_s.transpose();
+
+  const Eigen::Matrix<T, 3, 3> sqrt_projector = target_sqrt_projector_.cast<T>() + est_target_sqrt_projector;
+
+  // Compute the pseudo plane projection
+  const Eigen::Matrix<T, 3, 1> v = target_pt_.cast<T>() - est_target_pt_;
+  const Eigen::Matrix<T, 3, 1> v_proj = sqrt_projector * v;
 
   // Copy the loss
   residuals_ptr[0] = v_proj[0];

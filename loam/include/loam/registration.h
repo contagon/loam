@@ -38,7 +38,7 @@ namespace loam {
  *    ##       ##    ##        ########  ######
  */
 struct RegistrationParams {
-  enum PlanarVersion { PSEUDO_PLANAR, TRUE_PLANAR };
+  enum PlanarVersion { PSEUDO_PLANAR, TRUE_PLANAR, PLANE_PLANE };
 
   /// @brief The version of planar points to use for registration
   PlanarVersion planar_version{TRUE_PLANAR};
@@ -267,6 +267,65 @@ class PseudoPlaneCostFunction {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+/// @brief Defines the cost function between a point and a plane. NOTE: we do not use [1] Eq.(2)
+class PlanePlaneCostFunction {
+  /** FIELDS */
+ private:
+  /// @brief The planar point in the source frame
+  const Eigen::Matrix<double, 3, 1> source_pt_;
+  /// @brief The origin of the point has been matched to
+  const Eigen::Matrix<double, 3, 1> target_pt_;
+  /// @brief The sqrt of the projector of the plane the source point has been matched to
+  Eigen::Matrix<double, 3, 3> source_sqrt_projector_;
+  Eigen::Matrix<double, 3, 3> target_sqrt_projector_;
+
+  /** Interface */
+ public:
+  /** @brief Constructor
+   * @param source_pt: The point in the source frame matched with the plane
+   * @param origin: The origin of the plane in the target frame
+   * @param normal: The normal of the plan in the target frame
+   **/
+  PlanePlaneCostFunction(Eigen::Vector3d source_pt, Eigen::Vector3d target_pt, Eigen::Vector3d source_normal,
+                         Eigen::Vector3d target_normal, double epsilon)
+      : source_pt_(source_pt), target_pt_(target_pt) {
+    // If epsilon is too small, the matrix P will be singular, use a shortcut to compute things
+    if (epsilon < 1e-6) {
+      source_sqrt_projector_ = Eigen::Matrix3d::Zero();
+      source_sqrt_projector_.row(0) = source_normal;
+    } else {
+      const Eigen::Matrix3d source_P =
+          (epsilon * Eigen::Matrix3d::Identity()) + ((1.0 - epsilon) * source_normal * source_normal.transpose());
+      source_sqrt_projector_ = source_P.llt().matrixU();
+    }
+
+    if (epsilon < 1e-6) {
+      target_sqrt_projector_ = Eigen::Matrix3d::Zero();
+      target_sqrt_projector_.row(0) = target_normal;
+    } else {
+      const Eigen::Matrix3d target_P =
+          (epsilon * Eigen::Matrix3d::Identity()) + ((1.0 - epsilon) * target_normal * target_normal.transpose());
+      target_sqrt_projector_ = target_P.llt().matrixU();
+    }
+  }
+
+  /** @brief Computes the loss as the point-to-plane distance
+   * @param t_R_s_ptr: The current relative rotation solution target_R_source
+   * @param t_p_s_ptr: The current relative position solution target_p_source
+   * @param residuals_ptr: Container for the error of this loss
+   */
+  template <typename T>
+  bool operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const;
+
+  /// @brief Helper to return the cost function as a ceres auto diff cost function
+  static ceres::CostFunction* Create(Eigen::Vector3d source_pt, Eigen::Vector3d target_pt,
+                                     Eigen::Vector3d source_normal, Eigen::Vector3d target_normal, double epsilon) {
+    return new ceres::AutoDiffCostFunction<PlanePlaneCostFunction, 3, 4, 3>(
+        new PlanePlaneCostFunction(source_pt, target_pt, source_normal, target_normal, epsilon));
+  }
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
 /// @brief Defines the cost function between a point and a point.
 class PointCostFunction {
   /** FIELDS */
@@ -323,6 +382,7 @@ std::vector<std::pair<size_t, size_t>> associateEdges(const RegistrationParams& 
 std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams& params,
                                                        const LoamFeatures<Eigen::Vector3d>& source_eig,
                                                        const LoamFeatures<Eigen::Vector3d>& target_eig,
+                                                       const kdtree_internal::KDTree& source_plane_kdtree,
                                                        const kdtree_internal::KDTree& target_plane_kdtree,
                                                        const Pose3d& target_T_source_est, Pose3d& estimate_update,
                                                        ceres::Problem& problem);

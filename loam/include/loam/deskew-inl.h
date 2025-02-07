@@ -11,15 +11,19 @@ std::vector<Eigen::Vector3d> deskewConstantVelocity(const std::vector<PointType,
   std::vector<Eigen::Vector3d> transformed_points;
   transformed_points.reserve(input_scan.size());
   for (size_t i = 0; i < input_scan.size(); i++) {
-    // Create our transform
-    double stamp = rel_time_stamps[i];
-    Eigen::Quaterniond rot(Eigen::AngleAxisd(stamp * vel_rot.norm(), vel_rot.normalized()));
-    Pose3d pose(rot, stamp * vel_trans);
-
-    // Transform the point
     Eigen::Vector3d pt = pointToEigen<Accessor>(input_scan[i]);
-    Eigen::Vector3d pt_transformed = pose.act(pt);
-    transformed_points.push_back(pt_transformed);
+
+    // Short circuit the zero case
+    if (pt.x() == 0.0 && pt.y() == 0.0 && pt.z() == 0.0) {
+      transformed_points.push_back(Eigen::Vector3d::Zero());
+    } else {
+      double stamp = rel_time_stamps[i];
+      Eigen::Quaterniond rot(Eigen::AngleAxisd(stamp * vel_rot.norm(), vel_rot.normalized()));
+      Pose3d pose(rot, stamp * vel_trans);
+
+      Eigen::Vector3d pt_transformed = pose.act(pt);
+      transformed_points.push_back(pt_transformed);
+    }
   }
 
   return transformed_points;

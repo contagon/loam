@@ -78,7 +78,7 @@ TEST(TestLoamRegistration, TestSimpleCase) {
 
   // Run the registration
   RegistrationParams params;
-  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  params.planar_version = RegistrationParams::PlanarVersion::PLANE_PLANE;
   Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
@@ -100,7 +100,7 @@ TEST(TestLoamRegistration, TestSimpleLargeTranslation) {
 
   // Run the registration
   RegistrationParams params;
-  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  params.planar_version = RegistrationParams::PlanarVersion::PLANE_PLANE;
   Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
@@ -122,7 +122,7 @@ TEST(TestLoamRegistration, TestSimpleEvenLargerTranslation) {
 
   // Run the registration
   RegistrationParams params;
-  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  params.planar_version = RegistrationParams::PlanarVersion::PLANE_PLANE;
   Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
@@ -144,7 +144,7 @@ TEST(TestLoamRegistration, TestSimpleLargeRotation) {
 
   // Run the registration
   RegistrationParams params;
-  params.planar_version = RegistrationParams::PlanarVersion::PSEUDO_PLANAR;
+  params.planar_version = RegistrationParams::PlanarVersion::PLANE_PLANE;
   Pose3d target_T_source = registerFeatures<ParenAccessor>(source_features, target_features, Pose3d(), params = params);
 
   // Compute the error
