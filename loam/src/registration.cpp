@@ -100,14 +100,9 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
     ceres::CostFunction* cost = nullptr;
 
     // Pseudo - Planar - Potentially also constrain the other two directions
-    if (params.planar_version == RegistrationParams::PlanarVersion::PSEUDO_PLANAR) {
-      cost = PseudoPlaneCostFunction::Create(point_tgt, target_plane_points.row(0), target_plane.normal,
-                                             params.pseudo_plane_normal_epsilon);
-    }
-
-    // True Planar - Constrain only the normal direction
-    else if (params.planar_version == RegistrationParams::PlanarVersion::TRUE_PLANAR) {
-      cost = PlaneCostFunction::Create(point_tgt, target_plane);
+    if (params.planar_version == RegistrationParams::PlanarVersion::POINT_PLANE) {
+      cost = PointPlaneCostFunction::Create(point_tgt, target_plane_points.row(0), target_plane.normal,
+                                            params.pseudo_plane_normal_epsilon);
     }
 
     // Plane - Plane - Two way constrain planes

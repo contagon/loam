@@ -117,21 +117,7 @@ bool EdgeCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s
 
 /*********************************************************************************************************************/
 template <typename T>
-bool PlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
-  Eigen::Map<const Eigen::Quaternion<T>> t_R_s(t_R_s_ptr);
-  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_p_s(t_p_s_ptr);
-
-  // Transform the point into the target frame given the current estimate
-  const Eigen::Matrix<T, 3, 1> target_pt_ = t_R_s * source_pt_.cast<T>() + t_p_s;
-
-  // Compute the loss
-  residuals_ptr[0] = geometry_internal::pointToPlaneDistance<T>(target_pt_, plane_.normal.cast<T>(), T(plane_.d));
-  return true;
-}
-
-/*********************************************************************************************************************/
-template <typename T>
-bool PseudoPlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
+bool PointPlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
   Eigen::Map<const Eigen::Quaternion<T>> t_R_s(t_R_s_ptr);
   Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_p_s(t_p_s_ptr);
 
