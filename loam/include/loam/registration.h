@@ -38,11 +38,6 @@ namespace loam {
  *    ##       ##    ##        ########  ######
  */
 struct RegistrationParams {
-  enum PlanarVersion { POINT_PLANE, PLANE_PLANE };
-
-  /// @brief The version of planar points to use for registration
-  PlanarVersion planar_version{POINT_PLANE};
-
   /// @brief The number of edge points to search for in the target when associating a source edge point
   // Must be >= 2, Reasonable numbers are just greater than 2
   size_t num_edge_neighbors{5};
@@ -69,6 +64,8 @@ struct RegistrationParams {
 
   /// @brief the epsilon to use for orthogonal normal directions for pseudo-planar points
   double pseudo_plane_normal_epsilon{1e-3};
+  /// @brief whether to use plane to plane for plane features
+  bool use_plane_to_plane{false};
 
   /// @brief The max distance to target points when associating a source point
   /// If zero no max range is used, reasonable values are ~1m for most robotic applications

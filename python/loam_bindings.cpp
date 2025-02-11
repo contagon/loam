@@ -117,14 +117,8 @@ PYBIND11_MODULE(loam_python, m) {
    * ##     ## ########  ######   ####  ######     ##    ##     ## ##     ##    ##    ####  #######  ##    ##
    */
 
-  py::enum_<loam::RegistrationParams::PlanarVersion>(m, "PlanarVersion")
-      .value("POINT_PLANE", loam::RegistrationParams::PlanarVersion::POINT_PLANE)
-      .value("PLANE_PLANE", loam::RegistrationParams::PlanarVersion::PLANE_PLANE)
-      .export_values();
-
   py::class_<loam::RegistrationParams>(m, "RegistrationParams")
       .def(py::init<>())  // Constructor
-      .def_readwrite("planar_version", &loam::RegistrationParams::planar_version)
       .def_readwrite("num_edge_neighbors", &loam::RegistrationParams::num_edge_neighbors)
       .def_readwrite("max_edge_neighbor_dist", &loam::RegistrationParams::max_edge_neighbor_dist)
       .def_readwrite("min_line_fit_points", &loam::RegistrationParams::min_line_fit_points)
@@ -133,6 +127,7 @@ PYBIND11_MODULE(loam_python, m) {
       .def_readwrite("max_plane_neighbor_dist", &loam::RegistrationParams::max_plane_neighbor_dist)
       .def_readwrite("min_plane_fit_points", &loam::RegistrationParams::min_plane_fit_points)
       .def_readwrite("pseudo_plane_normal_epsilon", &loam::RegistrationParams::pseudo_plane_normal_epsilon)
+      .def_readwrite("use_plane_to_plane", &loam::RegistrationParams::use_plane_to_plane)
       .def_readwrite("max_avg_point_plane_dist", &loam::RegistrationParams::max_avg_point_plane_dist)
       .def_readwrite("max_iterations", &loam::RegistrationParams::max_iterations)
       .def_readwrite("rotation_convergence_thresh", &loam::RegistrationParams::rotation_convergence_thresh)

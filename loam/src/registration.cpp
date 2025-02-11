@@ -105,7 +105,7 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
                              estimate_update.translation.data());
 
     // Connect the source plane to the target plane
-    if (params.planar_version == RegistrationParams::PlanarVersion::PLANE_PLANE) {
+    if (params.use_plane_to_plane) {
       // Associate the query point with target points (Done in the true source frame)
       std::vector<size_t> source_plane_idxes = kdtree_internal::knnSearch(
           source_plane_kdtree, query, params.num_plane_neighbors, params.max_plane_neighbor_dist);
