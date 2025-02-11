@@ -97,16 +97,15 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
     //     - The source frame = the "true" source fame
     //     - The est target frame = the current estimate of the target frame -> all source points should end in this
     //     - The target frame = the "true" target frame
-    ceres::CostFunction* cost = nullptr;
 
-    // Pseudo - Planar - Potentially also constrain the other two directions
-    if (params.planar_version == RegistrationParams::PlanarVersion::POINT_PLANE) {
-      cost = PointPlaneCostFunction::Create(point_tgt, target_plane_points.row(0), target_plane.normal,
-                                            params.pseudo_plane_normal_epsilon);
-    }
+    // Connect the source point to the target plane
+    ceres::CostFunction* cost = PointPlaneCostFunction::Create(
+        point_tgt, target_plane_points.row(0), target_plane.normal, params.pseudo_plane_normal_epsilon, false);
+    problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), estimate_update.rotation.coeffs().data(),
+                             estimate_update.translation.data());
 
-    // Plane - Plane - Two way constrain planes
-    else if (params.planar_version == RegistrationParams::PlanarVersion::PLANE_PLANE) {
+    // Connect the source plane to the target plane
+    if (params.planar_version == RegistrationParams::PlanarVersion::PLANE_PLANE) {
       // Associate the query point with target points (Done in the true source frame)
       std::vector<size_t> source_plane_idxes = kdtree_internal::knnSearch(
           source_plane_kdtree, query, params.num_plane_neighbors, params.max_plane_neighbor_dist);
@@ -124,14 +123,13 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
       auto [source_plane, avg_dist] = geometry_internal::fitPlane(source_plane_points);
       if (avg_dist > params.max_avg_point_plane_dist) continue;  // GUARD: Plane points not co-planar
 
-      cost = PlanePlaneCostFunction::Create(point_tgt, target_plane_points.row(0), source_plane.normal,
-                                            target_plane.normal, params.pseudo_plane_normal_epsilon);
-    } else {
-      throw std::runtime_error("Unknown Planar Version");
+      ceres::CostFunction* cost = PointPlaneCostFunction::Create(
+          point_tgt, target_plane_points.row(0), source_plane.normal, params.pseudo_plane_normal_epsilon, true);
+
+      problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), estimate_update.rotation.coeffs().data(),
+                               estimate_update.translation.data());
     }
 
-    problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), estimate_update.rotation.coeffs().data(),
-                             estimate_update.translation.data());
     // Accumulate the association
     plane_associations.emplace_back(source_idx, target_plane_idxes.front());
   }

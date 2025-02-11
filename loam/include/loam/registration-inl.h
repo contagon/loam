@@ -124,33 +124,13 @@ bool PointPlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const
   // Transform the point into the target frame given the current estimate
   const Eigen::Matrix<T, 3, 1> target_pt_ = t_R_s * source_pt_.cast<T>() + t_p_s;
 
+  Eigen::Matrix<T, 3, 3> sqrt_projector = sqrt_projector_.cast<T>();
+  if (is_source_plane_) {
+    sqrt_projector = sqrt_projector * t_R_s.toRotationMatrix().transpose();
+  }
+
   // Compute the pseudo plane projection
   const Eigen::Matrix<T, 3, 1> v = origin_.cast<T>() - target_pt_;
-  const Eigen::Matrix<T, 3, 1> v_proj = sqrt_projector_.cast<T>() * v;
-
-  // Copy the loss
-  residuals_ptr[0] = v_proj[0];
-  residuals_ptr[1] = v_proj[1];
-  residuals_ptr[2] = v_proj[2];
-
-  return true;
-}
-
-/*********************************************************************************************************************/
-template <typename T>
-bool PlanePlaneCostFunction::operator()(const T* const t_R_s_ptr, const T* const t_p_s_ptr, T* residuals_ptr) const {
-  Eigen::Map<const Eigen::Quaternion<T>> t_R_s(t_R_s_ptr);
-  Eigen::Map<const Eigen::Matrix<T, 3, 1>> t_p_s(t_p_s_ptr);
-
-  // Transform the point into the target frame given the current estimate
-  const Eigen::Matrix<T, 3, 1> est_target_pt_ = t_R_s * source_pt_.cast<T>() + t_p_s;
-  const Eigen::Matrix<T, 3, 3> est_target_sqrt_projector =
-      t_R_s * source_sqrt_projector_.cast<T>();  // TODO: * t_R_s.transpose();
-
-  const Eigen::Matrix<T, 3, 3> sqrt_projector = target_sqrt_projector_.cast<T>() + est_target_sqrt_projector;
-
-  // Compute the pseudo plane projection
-  const Eigen::Matrix<T, 3, 1> v = target_pt_.cast<T>() - est_target_pt_;
   const Eigen::Matrix<T, 3, 1> v_proj = sqrt_projector * v;
 
   // Copy the loss

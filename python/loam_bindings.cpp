@@ -118,8 +118,7 @@ PYBIND11_MODULE(loam_python, m) {
    */
 
   py::enum_<loam::RegistrationParams::PlanarVersion>(m, "PlanarVersion")
-      .value("PSEUDO_PLANAR", loam::RegistrationParams::PlanarVersion::PSEUDO_PLANAR)
-      .value("TRUE_PLANAR", loam::RegistrationParams::PlanarVersion::TRUE_PLANAR)
+      .value("POINT_PLANE", loam::RegistrationParams::PlanarVersion::POINT_PLANE)
       .value("PLANE_PLANE", loam::RegistrationParams::PlanarVersion::PLANE_PLANE)
       .export_values();
 
