@@ -6,6 +6,24 @@
 #include "loam/deskew.h"
 #include "loam/geometry.h"
 
+TEST(TestLoamDeskew, InterpolateFunc) {
+  Eigen::Vector3d xi1(0.1, 0.2, 0.3);
+  Eigen::Quaterniond q1(Eigen::AngleAxisd(xi1.norm(), xi1.normalized()));
+  loam::Pose3d pose1(q1, Eigen::Vector3d(1.0, 2.0, 3.0));
+
+  Eigen::Vector3d xi2(-0.4, 0.5, 0.6);
+  Eigen::Quaterniond q2(Eigen::AngleAxisd(xi2.norm(), xi2.normalized()));
+  loam::Pose3d pose2(q2, Eigen::Vector3d(-3.0, -2.0, 1.0));
+
+  auto start = loam::interpolate(pose1, pose2, 0.0);
+  ASSERT_TRUE(pose1.translation.isApprox(start.translation));
+  ASSERT_TRUE(pose1.rotation.isApprox(start.rotation));
+
+  auto end = loam::interpolate(pose1, pose2, 1.0);
+  ASSERT_TRUE(pose2.translation.isApprox(end.translation));
+  ASSERT_TRUE(pose2.rotation.isApprox(end.rotation));
+};
+
 TEST(TestLoamDeskew, ConstantVelocity) {
   std::vector<Eigen::Vector3d> pts;
   std::vector<double> stamps;

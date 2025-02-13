@@ -5,6 +5,10 @@
 #include "loam/geometry.h"
 
 namespace loam {
+Pose3d interpolate(const Pose3d pose_start, const Pose3d pose_end, const double ratio);
+
+Pose3d interpolateList(const std::vector<Pose3d>& poses, const std::vector<double>& stamps, const double point_stamp);
+
 template <template <typename> class Accessor = FieldAccessor, typename PointType, template <typename> class Alloc>
 std::vector<Eigen::Vector3d> deskewConstantVelocity(const std::vector<PointType, Alloc<PointType>>& input_scan,
                                                     const std::vector<double>& rel_time_stamps, Eigen::Vector3d vel_rot,
@@ -14,6 +18,12 @@ template <template <typename> class Accessor = FieldAccessor, typename PointType
 std::vector<Eigen::Vector3d> deskewInterpolate(const std::vector<PointType, Alloc<PointType>>& input_scan,
                                                const std::vector<double>& rel_time_stamps, Pose3d pose_start,
                                                Pose3d pose_end);
+
+template <template <typename> class Accessor, typename PointType, template <typename> class Alloc>
+std::vector<Eigen::Vector3d> deskewImu(const std::vector<PointType, Alloc<PointType>>& input_scan,
+                                       const std::vector<double>& point_time_stamps, const std::vector<Pose3d> poses,
+                                       const std::vector<double>& imu_time_stamps);
+
 }  // namespace loam
 
 #include "loam/deskew-inl.h"

@@ -7,7 +7,7 @@ description = "Lidar Odometry and Mapping"
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["lidar", "odometry", "mapping", "robotics"]
-dependencies = ["numpy>2"]
+dependencies = ["numpy<2"]
 
 [build-system]
 requires = ["scikit-build-core>=0.10", "pybind11"]
