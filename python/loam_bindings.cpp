@@ -61,9 +61,6 @@ PYBIND11_MODULE(loam_python, m) {
   m.def("deskewConstantVelocity", &loam::deskewConstantVelocity<loam::AtAccessor, py::array_t<double>, std::allocator>,
         py::arg("input_scan"), py::arg("rel_time_stamps"), py::arg("vel_rot"), py::arg("vel_trans"));
 
-  m.def("deskewInterpolate", &loam::deskewInterpolate<loam::AtAccessor, py::array_t<double>, std::allocator>,
-        py::arg("input_scan"), py::arg("rel_time_stamps"), py::arg("pose_start"), py::arg("pose_end"));
-
   m.def("deskewImu", &loam::deskewImu<loam::AtAccessor, py::array_t<double>, std::allocator>,  //
         py::arg("input_scan"), py::arg("point_time_stamps"), py::arg("poses"), py::arg("imu_time_stamps"));
 
