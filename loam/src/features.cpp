@@ -45,9 +45,17 @@ bool markOccludedInvalid(const size_t& idx, const double& point_range, const dou
                          const FeatureExtractionParams& params, std::vector<bool>& mask) {
   if (next_point_range - point_range > params.occlusion_thresh) {  // Case 1
     for (size_t n = 1; n <= params.neighbor_points; n++) mask[idx + n] = false;
+    // If we're using nearest neighbors, features on the close side are also NOT planar
+    if (params.curvature_type == FeatureExtractionParams::Curvature::EIGEN_NN) {
+      for (size_t n = 0; n <= params.neighbor_points; n++) mask[idx - n] = false;
+    }
     return true;
   } else if (point_range - next_point_range > params.occlusion_thresh) {  // Case 2
     for (size_t n = 0; n < params.neighbor_points; n++) mask[idx - n] = false;
+    // If we're using nearest neighbors, features on the close side are also NOT planar
+    if (params.curvature_type == FeatureExtractionParams::Curvature::EIGEN_NN) {
+      for (size_t n = 0; n <= params.neighbor_points; n++) mask[idx + n] = false;
+    }
     return true;
   }
   return false;

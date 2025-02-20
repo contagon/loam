@@ -17,11 +17,11 @@ LoamFeatures<PointType, Alloc> extractFeatures(const std::vector<PointType, Allo
   // Compute the number of points in each sector given the parameters
   const size_t points_per_sector = lidar_params.points_per_line / params.number_sectors;
 
-  // Step 1: Compute Curvature for all points this is used in the extraction of both planar and edge feature points
-  std::vector<PointCurvature> curvature = computeCurvature<Accessor>(input_scan, lidar_params, params);
-
-  // Step 2: Compute mask of valid points
+  // Step 1: Compute mask of valid points
   std::vector<bool> valid_mask = computeValidPoints<Accessor>(input_scan, lidar_params, params);
+
+  // Step 2: Compute Curvature for all points this is used in the extraction of both planar and edge feature points
+  std::vector<PointCurvature> curvature = computeCurvature<Accessor>(input_scan, lidar_params, params, valid_mask);
 
   /// Step 3: Detect features in each sector of each scan line
   for (size_t scan_line_idx = 0; scan_line_idx < lidar_params.scan_lines; scan_line_idx++) {
@@ -55,11 +55,24 @@ LoamFeatures<PointType, Alloc> extractFeatures(const std::vector<PointType, Allo
 /*********************************************************************************************************************/
 template <template <typename> class Accessor, typename PointType, template <typename> class Alloc>
 std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<PointType>>& input_scan,
-                                             const LidarParams& lidar_params, const FeatureExtractionParams& params) {
+                                             const LidarParams& lidar_params, const FeatureExtractionParams& params,
+                                             const std::vector<bool>& valid_mask) {
   validateLidarScan(input_scan, lidar_params);
   // Allocate vector (with zeros) to store curvature
   std::vector<PointCurvature> curvature;
   curvature.reserve(input_scan.size());
+
+  // Convert all valid points to eigen for use in kdtree
+  std::vector<Eigen::Vector3d> eigen_points;
+  for (size_t idx = 0; idx < input_scan.size(); idx++) {
+    if (valid_mask.size() == 0 || valid_mask[idx]) {
+      eigen_points.push_back(pointToEigen<Accessor>(input_scan[idx]));
+    }
+  }
+
+  // Make kdtree for lookup
+  kdtree_internal::KDTreeDataAdaptor adaptor(eigen_points);
+  kdtree_internal::KDTree kdtree(3, adaptor, kdtree_internal::KDTreeParams(20));
 
   // Structured search (search over each scan line individually over all points [except points on scan line ends]
   for (size_t scan_line_idx = 0; scan_line_idx < lidar_params.scan_lines; scan_line_idx++) {
@@ -68,6 +81,11 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
       // If point is on the edge of the scan line record invalid curvature [-1]
       if (line_pt_idx < params.neighbor_points ||
           line_pt_idx >= lidar_params.points_per_line - params.neighbor_points) {
+        curvature.push_back(PointCurvature(idx, -1));
+      }
+      // If a point is all zeros, it's invalid, also report invalid curvature
+      // Quick test shows that this doesn't impact anything later on -> these points will be filtered out anyways
+      else if (valid_mask.size() > 0 && !valid_mask[idx]) {
         curvature.push_back(PointCurvature(idx, -1));
       }
       // If not an edge point compute the curvature
@@ -86,6 +104,7 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
           }
           curvature.push_back(PointCurvature(idx, dx * dx + dy * dy + dz * dz));
         }
+
         // Eigenvalue based curvature
         else if (params.curvature_type == FeatureExtractionParams::Curvature::EIGEN) {
           // Prep to compute covariance
@@ -97,12 +116,31 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
             neighbors.row(2 * n - 1) = pointToEigen<Accessor>(input_scan[idx + n]) - center;
           }
 
-          // Compute covariance matrix
+          // Compute covariance matrix and extract smallest eigenvalue
           Eigen::Matrix3d cov = (neighbors.transpose() * neighbors);
           Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> b(cov);
-          // Invert so that we can use the same convention as LOAM (smaller = planar, larger = edge)
           auto abs = b.eigenvalues().cwiseAbs();
           double c = abs[1];
+          curvature.push_back(PointCurvature(idx, c));
+        }
+
+        // Eigenvalue based curvature with a nearest neighbor search
+        else if (params.curvature_type == FeatureExtractionParams::Curvature::EIGEN_NN) {
+          // Find nearest neighbors within a distance
+          const Eigen::Vector3d center(pointToEigen<Accessor>(input_scan[idx]));
+          std::vector<size_t> neighbors =
+              kdtree_internal::knnSearch(kdtree, center, 2 * params.neighbor_points + 1, params.max_neighbor_distance);
+
+          // Skip first found point (it's the center)
+          Eigen::Matrix<double, Eigen::Dynamic, 3> neighbor_points(neighbors.size() - 1, 3);
+          for (size_t n = 1; n < neighbors.size(); n++) {
+            neighbor_points.row(n - 1) = eigen_points.at(neighbors[n]) - center;
+          }
+
+          // Compute covariance matrix and extract smallest eigenvalue
+          Eigen::Matrix3d cov = (neighbor_points.transpose() * neighbor_points);
+          Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> b(cov);
+          double c = b.eigenvalues()[0];
           curvature.push_back(PointCurvature(idx, c));
         }
       }

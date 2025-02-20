@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "loam/common.h"
+#include "loam/kdtree.h"
 
 namespace loam {
 
@@ -67,7 +68,9 @@ struct FeatureExtractionParams {
   /// WARN: This is an unintuitive param manual tuning and plotting results is recommended
   double parallel_thresh{0.002};
 
-  enum Curvature { LOAM, EIGEN };
+  double max_neighbor_distance{1.0};
+
+  enum Curvature { LOAM, EIGEN, EIGEN_NN };
   Curvature curvature_type{Curvature::LOAM};
 };
 
@@ -129,7 +132,8 @@ LoamFeatures<PointType, Alloc> extractFeatures(const std::vector<PointType, Allo
 template <template <typename> class Accessor = FieldAccessor, typename PointType, template <typename> class Alloc>
 std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<PointType>>& input_scan,
                                              const LidarParams& lidar_params,
-                                             const FeatureExtractionParams& params = FeatureExtractionParams());
+                                             const FeatureExtractionParams& params = FeatureExtractionParams(),
+                                             const std::vector<bool>& valid_mask = std::vector<bool>());
 
 /** @brief Computes all valid points in the LiDAR scan [1] Sec. V.A
  * A point can be deemed invalid for 4 reasons

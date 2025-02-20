@@ -77,6 +77,7 @@ PYBIND11_MODULE(loam_python, m) {
   py::enum_<loam::FeatureExtractionParams::Curvature>(m, "Curvature")
       .value("LOAM", loam::FeatureExtractionParams::Curvature::LOAM)
       .value("EIGEN", loam::FeatureExtractionParams::Curvature::EIGEN)
+      .value("EIGEN_NN", loam::FeatureExtractionParams::Curvature::EIGEN_NN)
       .export_values();
 
   py::class_<loam::FeatureExtractionParams>(m, "FeatureExtractionParams")
@@ -90,6 +91,7 @@ PYBIND11_MODULE(loam_python, m) {
       .def_readwrite("planar_feat_threshold", &loam::FeatureExtractionParams::planar_feat_threshold)
       .def_readwrite("occlusion_thresh", &loam::FeatureExtractionParams::occlusion_thresh)
       .def_readwrite("parallel_thresh", &loam::FeatureExtractionParams::parallel_thresh)
+      .def_readwrite("max_neighbor_distance", &loam::FeatureExtractionParams::max_neighbor_distance)
       .def_readwrite("curvature_type", &loam::FeatureExtractionParams::curvature_type);
 
   py::class_<loam::LoamFeatures<py::array_t<double>>>(m, "LoamFeatures")
@@ -102,7 +104,8 @@ PYBIND11_MODULE(loam_python, m) {
         py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams());
 
   m.def("computeCurvature", &loam::computeCurvature<loam::AtAccessor, py::array_t<double>, std::allocator>,  //
-        py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams());
+        py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams(),
+        py::arg("valid_mask") = std::vector<bool>());
 
   m.def("computeValidPoints", &loam::computeValidPoints<loam::AtAccessor, py::array_t<double>, std::allocator>,  //
         py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams());
