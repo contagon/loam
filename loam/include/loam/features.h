@@ -80,10 +80,13 @@ template <typename PointType, template <typename> class Alloc = std::allocator>
 struct LoamFeatures {
   /// @brief A pointcloud of edge feature points
   std::vector<PointType, Alloc<PointType>> edge_points;
+  std::vector<size_t> edge_scan_indices;
   /// @brief A pointcloud of planar feature points
   std::vector<PointType, Alloc<PointType>> planar_points;
+  std::vector<size_t> planar_scan_indices;
   /// @brief A pointcloud of point features - includes everything not classified as an edge or planar feature
   std::vector<PointType, Alloc<PointType>> point_points;
+  std::vector<size_t> point_scan_indices;
 };
 
 /// @brief Structure for storing curvature information for points
@@ -211,6 +214,11 @@ LoamFeatures<Eigen::Vector3d> featuresToEigen(const LoamFeatures<PointType, Allo
   for (const PointType pt : in_features.point_points) {
     result.point_points.push_back(pointToEigen<Accessor>(pt));
   }
+
+  result.edge_scan_indices = in_features.edge_scan_indices;
+  result.planar_scan_indices = in_features.planar_scan_indices;
+  result.point_scan_indices = in_features.point_scan_indices;
+
   return result;
 }
 

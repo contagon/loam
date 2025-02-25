@@ -77,13 +77,34 @@ std::vector<std::pair<size_t, size_t>> associatePlanes(const RegistrationParams&
     const Eigen::Vector3d point_tgt = target_T_source_est.act(query);
 
     // Associate the query point with target points
+    // Search for way too many neighbors to make sure we find one on another scan line
     std::vector<size_t> target_plane_idxes = kdtree_internal::knnSearch(
-        target_plane_kdtree, point_tgt, params.num_plane_neighbors, params.max_plane_neighbor_dist);
+        target_plane_kdtree, point_tgt, params.num_plane_neighbors * 3, params.max_plane_neighbor_dist);
     if (target_plane_idxes.size() < params.min_plane_fit_points) continue;  // GUARD: Insufficient Matches
 
+    // Search for the point on another scan line
+    size_t other_scanline_target_plane_idx = -1;
+    size_t first_scanline_idx = target_eig.planar_scan_indices[target_plane_idxes.front()];
+    for (size_t idx = 1; idx < target_plane_idxes.size(); idx++) {
+      if (target_eig.planar_scan_indices.at(target_plane_idxes[idx]) != first_scanline_idx) {
+        other_scanline_target_plane_idx = idx;
+        break;
+      }
+    }
+
+    // GUARD: If there isn't a point on another scan line, return early
+    if (other_scanline_target_plane_idx == -1) {
+      continue;
+    }
+    // If there is make it the last point
+    else if (other_scanline_target_plane_idx >= params.num_plane_neighbors) {
+      target_plane_idxes[params.num_plane_neighbors - 1] = target_plane_idxes[other_scanline_target_plane_idx];
+    }
+
     // Accumulate the points into a matrix
-    Eigen::MatrixXd target_plane_points = Eigen::MatrixXd::Zero(target_plane_idxes.size(), 3);
-    for (size_t i = 0; i < target_plane_idxes.size(); i++) {
+    size_t num_points = std::min(params.num_plane_neighbors, target_plane_idxes.size());
+    Eigen::MatrixXd target_plane_points = Eigen::MatrixXd::Zero(num_points, 3);
+    for (size_t i = 0; i < num_points; i++) {
       target_plane_points.row(i) = target_eig.planar_points.at(target_plane_idxes[i]);
     }
 

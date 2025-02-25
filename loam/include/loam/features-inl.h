@@ -46,6 +46,16 @@ LoamFeatures<PointType, Alloc> extractFeatures(const std::vector<PointType, Allo
       // Search smallest to largest [i.e. point features] WARN: Mutates out_features + valid_mask
       features_internal::extractSectorPointFeatures(sector_start_pt, sector_end_pt, input_scan, curvature, params,
                                                     out_features, valid_mask);
+      // Fill in the scan indices for the edge points
+      while (out_features.edge_points.size() > out_features.edge_scan_indices.size()) {
+        out_features.edge_scan_indices.push_back(scan_line_idx);
+      }
+      while (out_features.planar_points.size() > out_features.planar_scan_indices.size()) {
+        out_features.planar_scan_indices.push_back(scan_line_idx);
+      }
+      while (out_features.point_points.size() > out_features.point_scan_indices.size()) {
+        out_features.point_scan_indices.push_back(scan_line_idx);
+      }
 
     }  // end sector search
   }  // end scan line search

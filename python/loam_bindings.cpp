@@ -97,8 +97,11 @@ PYBIND11_MODULE(loam_python, m) {
   py::class_<loam::LoamFeatures<py::array_t<double>>>(m, "LoamFeatures")
       .def(py::init<>())  // Constructor
       .def_readwrite("edge_points", &loam::LoamFeatures<py::array_t<double>>::edge_points)
+      .def_readwrite("edge_scan_indices", &loam::LoamFeatures<py::array_t<double>>::edge_scan_indices)
       .def_readwrite("planar_points", &loam::LoamFeatures<py::array_t<double>>::planar_points)
-      .def_readwrite("point_points", &loam::LoamFeatures<py::array_t<double>>::point_points);
+      .def_readwrite("planar_scan_indices", &loam::LoamFeatures<py::array_t<double>>::planar_scan_indices)
+      .def_readwrite("point_points", &loam::LoamFeatures<py::array_t<double>>::point_points)
+      .def_readwrite("point_scan_indices", &loam::LoamFeatures<py::array_t<double>>::point_scan_indices);
 
   m.def("extractFeatures", &loam::extractFeatures<loam::AtAccessor, py::array_t<double>, std::allocator>,
         py::arg("input_scan"), py::arg("lidar_params"), py::arg("params") = loam::FeatureExtractionParams());

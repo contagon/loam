@@ -3,6 +3,8 @@
  * @date Mar 2024
  */
 #pragma once
+#include <cassert>
+
 #include "loam/registration.h"
 
 namespace loam {
@@ -15,6 +17,10 @@ Pose3d registerFeatures(const LoamFeatures<PointType, Alloc>& source, const Loam
   // Convert features to eigen once here to avoid repeated conversions later
   LoamFeatures<Eigen::Vector3d> source_eig = features_internal::featuresToEigen<Accessor>(source);
   LoamFeatures<Eigen::Vector3d> target_eig = features_internal::featuresToEigen<Accessor>(target);
+
+  assert(source_eig.edge_scan_indices.size() == source_eig.edge_points.size() && "Invalid edge scan indices");
+  assert(source_eig.planar_scan_indices.size() == source_eig.planar_points.size() && "Invalid planar scan indices");
+  assert(source_eig.point_scan_indices.size() == source_eig.point_points.size() && "Invalid point scan indices");
 
   // Compute a KDtree for the target features: 20 leaf nodes is approx optimal given nanoflann's documentation
   kdtree_internal::KDTreeDataAdaptor target_edge_adaptor(target_eig.edge_points);
