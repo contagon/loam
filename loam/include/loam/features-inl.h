@@ -74,9 +74,14 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
 
   // Convert all valid points to eigen for use in kdtree
   std::vector<Eigen::Vector3d> eigen_points;
-  for (size_t idx = 0; idx < input_scan.size(); idx++) {
-    if (valid_mask.size() == 0 || valid_mask[idx]) {
-      eigen_points.push_back(pointToEigen<Accessor>(input_scan[idx]));
+  std::vector<size_t> eigen_scanlines;
+  for (size_t scan_line_idx = 0; scan_line_idx < lidar_params.scan_lines; scan_line_idx++) {
+    for (size_t line_pt_idx = 0; line_pt_idx < lidar_params.points_per_line; line_pt_idx++) {
+      const size_t idx = (scan_line_idx * lidar_params.points_per_line) + line_pt_idx;
+      if (valid_mask.size() == 0 || valid_mask[idx]) {
+        eigen_points.push_back(pointToEigen<Accessor>(input_scan[idx]));
+        eigen_scanlines.push_back(scan_line_idx);
+      }
     }
   }
 
@@ -139,11 +144,30 @@ std::vector<PointCurvature> computeCurvature(const std::vector<PointType, Alloc<
           // Find nearest neighbors within a distance
           const Eigen::Vector3d center(pointToEigen<Accessor>(input_scan[idx]));
           std::vector<size_t> neighbors =
-              kdtree_internal::knnSearch(kdtree, center, 2 * params.neighbor_points + 1, params.max_neighbor_distance);
+              kdtree_internal::knnSearch(kdtree, center, 8 * params.neighbor_points + 1, params.max_neighbor_distance);
 
-          // Skip first found point (it's the center)
-          Eigen::Matrix<double, Eigen::Dynamic, 3> neighbor_points(neighbors.size() - 1, 3);
+          size_t other_scanline_idx = -1;
           for (size_t n = 1; n < neighbors.size(); n++) {
+            if (eigen_scanlines[neighbors[n]] != scan_line_idx) {
+              other_scanline_idx = n;
+              break;
+            }
+          }
+
+          // GUARD: If there isn't a point on another scan line, return early
+          if (other_scanline_idx == -1) {
+            curvature.push_back(PointCurvature(idx, -1));
+            continue;
+          }
+          // If there is, but it's not in the nearest 2n, make it the last point
+          else if (other_scanline_idx >= 2 * params.neighbor_points + 1) {
+            neighbors[2 * params.neighbor_points] = neighbors[other_scanline_idx];
+          }
+
+          // Skip first found point (it's itself and is the center)
+          size_t num_points = std::min(neighbors.size() - 1, 2 * params.neighbor_points);
+          Eigen::Matrix<double, Eigen::Dynamic, 3> neighbor_points(num_points, 3);
+          for (size_t n = 1; n < num_points + 1; n++) {
             neighbor_points.row(n - 1) = eigen_points.at(neighbors[n]) - center;
           }
 
@@ -216,7 +240,7 @@ void extractSectorEdgeFeatures(const size_t& sector_start_point, const size_t& s
   for (size_t sorted_curv_idx_p1 = sector_end_point; sorted_curv_idx_p1 > sector_start_point; sorted_curv_idx_p1--) {
     const PointCurvature curv = curvature[sorted_curv_idx_p1 - 1];  // subtraction as loop cannot go negative
 
-    if (valid_mask[curv.index] && curv.curvature > params.edge_feat_threshold) {
+    if (valid_mask[curv.index] && curv.curvature > -1.0 && curv.curvature > params.edge_feat_threshold) {
       out_features.edge_points.push_back(input_scan.at(curv.index));  // Add to edge points
       for (size_t n = 0; n < params.neighbor_points; n++) {           // update mask
         valid_mask[curv.index + n] = false;
@@ -238,7 +262,7 @@ void extractSectorPlanarFeatures(const size_t& sector_start_point, const size_t&
   size_t num_sector_planar_features = 0;
   for (size_t sorted_curv_idx = sector_start_point; sorted_curv_idx < sector_end_point; sorted_curv_idx++) {
     const PointCurvature curv = curvature[sorted_curv_idx];
-    if (valid_mask[curv.index] && curv.curvature < params.planar_feat_threshold) {
+    if (valid_mask[curv.index] && curv.curvature > -1.0 && curv.curvature < params.planar_feat_threshold) {
       out_features.planar_points.push_back(input_scan.at(curv.index));  // Add to edge points
       for (size_t n = 0; n < params.neighbor_points; n++) {             // update mask
         valid_mask[curv.index + n] = false;
